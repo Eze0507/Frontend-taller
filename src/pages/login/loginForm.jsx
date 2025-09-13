@@ -1,5 +1,6 @@
 // src/components/LoginForm.jsx
 import React from "react";
+import { Link } from "react-router-dom";
 
 const LoginForm = ({ username, password, setUsername, setPassword, onSubmit, loading, error }) => {
   return (
@@ -52,6 +53,19 @@ const LoginForm = ({ username, password, setUsername, setPassword, onSubmit, loa
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        {/* Enlace para registrarse */}
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            ¿No tienes una cuenta?{" "}
+            <Link 
+              to="/register" 
+              className="text-indigo-600 hover:text-indigo-500 font-medium"
+            >
+              Regístrate aquí
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

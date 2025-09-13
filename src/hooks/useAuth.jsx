@@ -37,25 +37,19 @@ export function useAuth() {
       // 1. Guardar tokens en localStorage
       localStorage.setItem("access", access);
       localStorage.setItem("refresh", refresh);
-
-      // 2. Decodificar el token y guardar el nombre de usuario
+      
+      // 2. Guardar el nombre de usuario directamente del input
+      localStorage.setItem("username", username);
+      console.log(`✅ Nombre de usuario '${username}' guardado en localStorage.`);
+      
+      // 3. Decodificar el token para obtener el rol si está disponible
       const userData = parseJwt(access);
-      console.log("Datos decodificados del token:", userData); // <-- AÑADIDO PARA DEBUGGING
-
-      let userNameFound = null;
-      if (userData && userData.username) {
-        userNameFound = userData.username;
-      } else if (userData && userData.name) {
-        userNameFound = userData.name;
-      } else if (userData && userData.email) {
-        userNameFound = userData.email;
-      }
-
-      if (userNameFound) {
-        localStorage.setItem("username", userNameFound);
-        console.log(`✅ Nombre de usuario '${userNameFound}' guardado en localStorage.`);
-      } else {
-        console.warn("⚠️ No se encontró una propiedad para el nombre de usuario ('username', 'name', 'email') en el token JWT.");
+      console.log("Datos decodificados del token:", userData);
+      
+      if (userData && userData.role) {
+        localStorage.setItem("userRole", userData.role);
+      } else if (userData && userData.groups && userData.groups.length > 0) {
+        localStorage.setItem("userRole", userData.groups[0]);
       }
 
       return true; // login exitoso

@@ -11,13 +11,15 @@ import {
   FaHome,
   FaSignOutAlt,
   FaUserCircle,
+  FaWrench,
+  FaCar,
 } from "react-icons/fa";
 
 const Sidebar = () => {
   const [openMenu, setOpenMenu] = useState(null);
   const navigate = useNavigate();
   const location = useLocation(); // Hook para detectar cambios de ruta
-  const [username, setUsername] = useState("Usuario");
+  const [username, setUsername] = useState(localStorage.getItem("username") || "Usuario");
   const [userRole, setUserRole] = useState("Invitado");
 
   const toggleMenu = (menu) => {
@@ -39,9 +41,14 @@ const Sidebar = () => {
   // Este efecto se ejecutará cada vez que cambie la URL.
   // Así nos aseguramos de que la información del usuario se actualice después del login.
   useEffect(() => {
-    setUsername(localStorage.getItem("username") || "Usuario");    
-    setUsername(localStorage.getItem("username") || "Usuario");
-    setUserRole(localStorage.getItem("userRole") || "Invitado");
+    const storedUsername = localStorage.getItem("username");
+    const storedUserRole = localStorage.getItem("userRole");
+    
+    setUsername(storedUsername || "Usuario");
+    setUserRole(storedUserRole || "Invitado");
+    
+    console.log("Username en sidebar:", storedUsername);
+    console.log("UserRole en sidebar:", storedUserRole);
   }, [location.pathname]); // Se dispara con cada cambio de navegación
 
   const menuItems = [
@@ -56,13 +63,13 @@ const Sidebar = () => {
       icon: <FaUserCog className="mr-2" />,
       key: "administracion",
       subItems: [
-        { name: "Rol", path: "/admin/roles" },
-        { name: "Usuario", path: "/admin/usuarios" },
-        { name: "Empleado", path: "/admin/empleados" },
-        { name: "Cargo", path: "/admin/cargos" },
-        { name: "Asistencia", path: "/admin/asistencias" },
-        { name: "Nómina", path: "/admin/nominas" },
-        { name: "Bitácora", path: "/admin/bitacora" },
+  { name: "Rol", path: "/admin/roles" },
+  { name: "Usuario", path: "/admin/usuarios" },
+  { name: "Empleado", path: "/admin/empleados" },
+  { name: "Cargo", path: "/admin/cargos" },
+  { name: "Asistencia", path: "/admin/asistencias" },
+  { name: "Nómina", path: "/admin/nominas" },
+  { name: "Bitácora", path: "/admin/bitacora" },
       ],
     },
     {
@@ -108,7 +115,16 @@ const Sidebar = () => {
   return (
     <aside className="bg-gray-800 text-white w-64 flex flex-col">
       <div className="p-4 text-center border-b border-gray-700 shadow-md">
-        <h2 className="text-2xl font-bold text-white">Mi Taller</h2>
+        <Link to="/admin/home" className="block hover:opacity-80 transition-opacity duration-200">
+          <div className="flex items-center justify-center mb-2">
+            <div className="relative">
+              <FaCar className="text-3xl text-blue-400 mr-1" />
+              <FaWrench className="absolute -bottom-1 -right-1 text-lg text-yellow-400" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-white">AutoFix</h2>
+          <p className="text-xs text-gray-400 mt-1">Sistema de Gestión Automotriz</p>
+        </Link>
       </div>
 
       {/* Menú Desplazable */}

@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import Layout from "../pages/layout";
 import Dashboard from "../pages/dashboard/dashboard.jsx";
 import UserPage from "../pages/usuario/UserPage.jsx";
+import CargoPage from "../pages/cargo/cargoPage.jsx";
+import HomePage from "../pages/home/HomePage.jsx";
 import LoginPage from "../pages/login/loginPage.jsx"; // 👈 importar login
 import RegisterPage from "../pages/register/RegisterPage.jsx";
 
@@ -38,11 +40,15 @@ const AppRouter = () => {
 
         {/* Ruta de login */}
         <Route path="/login" element={<LoginPage />} />
+        
+        {/* Página Home independiente (sin sidebar) */}
+        <Route path="/admin/home" element={<HomePage />} />
 
         {/* Páginas del panel de administrador */}
         <Route element={<AdminRoutes />}>
           <Route path="/admin/dashboard" element={<Dashboard />} />
           <Route path="/admin/usuarios" element={<UserPage />} />
+          <Route path="/admin/cargos" element={<CargoPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
