@@ -1,7 +1,8 @@
 // src/hooks/useRegister.jsx
 import { useState } from "react";
 import axios from "axios";
-import Cookies from "js-cookie"; // 👈 para leer la cookie CSRF
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
 export function useRegister() {
   const [loading, setLoading] = useState(false);
@@ -12,27 +13,34 @@ export function useRegister() {
     setError("");
 
     try {
-      // 1️⃣ Obtener la cookie CSRF
-      await axios.get("http://127.0.0.1:8000/api/csrf/", {
-        withCredentials: true,
-      });
+      // Validación básica en el frontend
+      if (!username || !email || !password || !password2) {
+        setError("Todos los campos son obligatorios");
+        return false;
+      }
 
-      // 2️⃣ Leer el token desde la cookie
-      const csrfToken = Cookies.get("csrftoken");
+      if (password !== password2) {
+        setError("Las contraseñas no coinciden");
+        return false;
+      }
 
-      // 3️⃣ Enviar el POST con el token en el header
+      if (password.length < 6) {
+        setError("La contraseña debe tener al menos 6 caracteres");
+        return false;
+      }
+
+      // Enviar datos al backend
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/register/",
+        `${API_BASE}/api/register/`,
         {
-          username,
-          email,
+          username: username.trim(),
+          email: email.trim(),
           password,
           password2,
         },
         {
-          withCredentials: true,
           headers: {
-            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/json",
           },
         }
       );
@@ -41,7 +49,27 @@ export function useRegister() {
       return true;
     } catch (err) {
       console.error("❌ Error en registro:", err.response?.data);
-      setError(err.response?.data || "Error desconocido");
+      
+      // Manejo de errores más específico
+      if (err.response?.data) {
+        if (typeof err.response.data === "string") {
+          setError(err.response.data);
+        } else if (err.response.data.detail) {
+          setError(err.response.data.detail);
+        } else if (err.response.data.error) {
+          setError(err.response.data.error);
+        } else if (err.response.data.username) {
+          setError(`Usuario: ${err.response.data.username[0]}`);
+        } else if (err.response.data.email) {
+          setError(`Email: ${err.response.data.email[0]}`);
+        } else if (err.response.data.password) {
+          setError(`Contraseña: ${err.response.data.password[0]}`);
+        } else {
+          setError(JSON.stringify(err.response.data));
+        }
+      } else {
+        setError("Error de conexión con el servidor");
+      }
       return false;
     } finally {
       setLoading(false);

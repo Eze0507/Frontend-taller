@@ -7,6 +7,7 @@ import CargoPage from "../pages/cargo/cargoPage.jsx";
 import HomePage from "../pages/home/HomePage.jsx";
 import LoginPage from "../pages/login/loginPage.jsx"; // 👈 importar login
 import RegisterPage from "../pages/register/RegisterPage.jsx";
+import EmpleadoPage from "../pages/empleados/EmpleadoPage.jsx";
 
 const AdminRoutes = () => {
   const isAuthenticated = !!localStorage.getItem("access");
@@ -47,6 +48,7 @@ const AppRouter = () => {
           <Route path="/admin/dashboard" element={<Dashboard />} />
           <Route path="/admin/usuarios" element={<UserPage />} />
           <Route path="/admin/cargos" element={<CargoPage />} />
+          <Route path="/admin/empleados" element={<EmpleadoPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

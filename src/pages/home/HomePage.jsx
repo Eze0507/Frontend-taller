@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaCar, FaWrench, FaOilCan, FaCogs, FaChartLine, FaBolt, FaTools, FaTachometerAlt, FaUser, FaSignOutAlt, FaChevronDown } from 'react-icons/fa';
 import UserProfile from '../../components/UserProfile';
@@ -6,6 +6,15 @@ import UserProfile from '../../components/UserProfile';
 const HomePage = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [username, setUsername] = useState('Usuario');
+
+  // Obtener el nombre del usuario del localStorage
+  useEffect(() => {
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("access");
@@ -42,7 +51,7 @@ const HomePage = () => {
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
                   className="bg-gray-800 text-white px-4 py-2 rounded-full text-sm flex items-center space-x-2 hover:bg-gray-700 transition-colors duration-200"
                 >
-                  <span>Hola, Jhamil</span>
+                  <span>Hola, {username}</span>
                   <FaChevronDown className={`text-xs transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 
