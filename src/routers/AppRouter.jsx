@@ -1,45 +1,52 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Layout from "../pages/layout";
 import Dashboard from "../pages/dashboard/dashboard.jsx";
 import UserPage from "../pages/usuario/UserPage.jsx";
+import LoginPage from "../pages/login/loginPage.jsx"; // 👈 importar login
+import RegisterPage from "../pages/register/RegisterPage.jsx";
+
+const AdminRoutes = () => {
+  const isAuthenticated = !!localStorage.getItem("access");
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <Layout>
+      <Outlet />
+    </Layout>
+  );
+};
 
 const AppRouter = () => {
-  const userRole = "admin"; // simulado por ahora
+  // Esta comprobación se hace ahora dentro de cada ruta protegida o en el redirect
+  const isAuthenticated = !!localStorage.getItem("access");
 
   return (
     <BrowserRouter>
       <Routes>
         {/* Ruta por defecto */}
-        <Route path="/" element={<Navigate to="/admin/dashboard" />} />
+        <Route
+          path="/"
+          element={
+            isAuthenticated ? <Navigate to="/admin/dashboard" /> : <Navigate to="/login" />
+          }
+        />
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* Ruta de login */}
+        <Route path="/login" element={<LoginPage />} />
 
         {/* Páginas del panel de administrador */}
-        {userRole === "admin" && (
-          <>
-            <Route
-              path="/admin/dashboard"
-              element={
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              }
-            />
-            <Route
-              path="/admin/usuarios"
-              element={
-                <Layout>
-                  <UserPage />
-                </Layout>
-              }
-            />
-          </>
-        )}
-
-        {/* Aquí podrías agregar otras rutas sin Layout, como login */}
+        <Route element={<AdminRoutes />}>
+          <Route path="/admin/dashboard" element={<Dashboard />} />
+          <Route path="/admin/usuarios" element={<UserPage />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
 };
 
 export default AppRouter;
-

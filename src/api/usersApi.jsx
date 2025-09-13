@@ -1,11 +1,25 @@
 import axios from 'axios';
 
-// Centraliza todas las llamadas a la API de usuarios y roles.
-const BACKEND_API_URL = 'http://127.0.0.1:8000/api';
+// Creamos una instancia de Axios que se usará para todas las llamadas a la API.
+const apiClient = axios.create({
+  baseURL: 'http://127.0.0.1:8000/api',
+});
+
+// Interceptor para añadir el token de autenticación a cada solicitud.
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export const fetchAllUsers = async () => {
   try {
-    const response = await axios.get(`${BACKEND_API_URL}/users/`);
+    const response = await apiClient.get('/users/');
     return response.data;
   } catch (error) {
     throw new Error('Error al obtener los usuarios.');
@@ -14,7 +28,7 @@ export const fetchAllUsers = async () => {
 
 export const fetchAllRoles = async () => {
   try {
-    const response = await axios.get(`${BACKEND_API_URL}/groupsAux/`);
+    const response = await apiClient.get('/groupsAux/');
     return response.data;
   } catch (error) {
     throw new Error('Error al obtener los roles.');
@@ -23,7 +37,7 @@ export const fetchAllRoles = async () => {
 
 export const createUser = async (userData) => {
   try {
-    const response = await axios.post(`${BACKEND_API_URL}/users/`, userData);
+    const response = await apiClient.post('/users/', userData);
     return response.data;
   } catch (error) {
     if (error.response) {
@@ -35,7 +49,7 @@ export const createUser = async (userData) => {
 
 export const updateUser = async (userId, userData) => {
   try {
-    const response = await axios.put(`${BACKEND_API_URL}/users/${userId}/`, userData);
+    const response = await apiClient.put(`/users/${userId}/`, userData);
     return response.data;
   } catch (error) {
     if (error.response) {
@@ -47,7 +61,7 @@ export const updateUser = async (userId, userData) => {
 
 export const deleteUser = async (userId) => {
   try {
-    await axios.delete(`${BACKEND_API_URL}/users/${userId}/`);
+    await apiClient.delete(`/users/${userId}/`);
   } catch (error) {
     throw new Error('Error al eliminar el usuario.');
   }

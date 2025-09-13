@@ -77,7 +77,7 @@ const UserPage = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 relative">
+    <div className="relative">
       {/* Tabla de usuarios */}
       <UserList
         users={users}
@@ -103,4 +103,3 @@ const UserPage = () => {
 };
 
 export default UserPage;
-

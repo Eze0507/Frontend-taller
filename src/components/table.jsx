@@ -41,7 +41,7 @@ const CustomTable = ({ title = "Lista", columns = [], data = [], onEdit, onDelet
                     <Button variant="editar" onClick={() => onEdit(row)}>
                       Editar
                     </Button>
-                    <Button variant="cancelar" onClick={() => onDelete(row)}>
+                    <Button variant="cancelar" onClick={() => onDelete(row.id)}>
                       Eliminar
                     </Button>
                   </td>

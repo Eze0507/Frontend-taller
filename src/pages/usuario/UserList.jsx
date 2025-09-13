@@ -59,14 +59,10 @@ const UserList = ({ users, onEdit, onDelete, onAddNew }) => {
         columns={columns}
         data={tableData}
         onEdit={(user) => onEdit(user)}
-        onDelete={(user) => onDelete(user.id)}
+        onDelete={onDelete}
       />
     </div>
   );
 };
 
 export default UserList;
-
-
-
-

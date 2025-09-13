@@ -1,6 +1,6 @@
 // src/components/Sidebar.jsx
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FaChevronDown,
   FaChevronRight,
@@ -10,20 +10,39 @@ import {
   FaMoneyBillWave,
   FaHome,
   FaSignOutAlt,
+  FaUserCircle,
 } from "react-icons/fa";
 
 const Sidebar = () => {
   const [openMenu, setOpenMenu] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation(); // Hook para detectar cambios de ruta
+  const [username, setUsername] = useState("Usuario");
+  const [userRole, setUserRole] = useState("Invitado");
 
   const toggleMenu = (menu) => {
     setOpenMenu(openMenu === menu ? null : menu);
   };
 
   const handleLogout = () => {
-    // TODO: Implementar lógica de logout
-    console.log("Logout clicked - funcionalidad pendiente");
-    alert("Función de logout pendiente de implementar");
+    // 1. Eliminar los tokens de autenticación del localStorage.
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("username");
+    localStorage.removeItem("userRole");
+
+    // 2. Redirigir al usuario a la página de login.
+    // `replace: true` evita que el usuario pueda volver al panel con el botón "atrás".
+    navigate("/login", { replace: true });
   };
+
+  // Este efecto se ejecutará cada vez que cambie la URL.
+  // Así nos aseguramos de que la información del usuario se actualice después del login.
+  useEffect(() => {
+    setUsername(localStorage.getItem("username") || "Usuario");    
+    setUsername(localStorage.getItem("username") || "Usuario");
+    setUserRole(localStorage.getItem("userRole") || "Invitado");
+  }, [location.pathname]); // Se dispara con cada cambio de navegación
 
   const menuItems = [
     {
@@ -87,8 +106,13 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="bg-gray-800 text-white w-64 min-h-screen p-4">
-      <nav>
+    <aside className="bg-gray-800 text-white w-64 flex flex-col">
+      <div className="p-4 text-center border-b border-gray-700 shadow-md">
+        <h2 className="text-2xl font-bold text-white">Mi Taller</h2>
+      </div>
+
+      {/* Menú Desplazable */}
+      <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-2">
           {menuItems.map((menu) => (
             <li key={menu.key}>
@@ -138,22 +162,32 @@ const Sidebar = () => {
             </li>
           ))}
         </ul>
-        
-        {/* Botón de Logout */}
-        <div className="mt-8 pt-4 border-t border-gray-600">
-          <button
-            onClick={handleLogout}
-            className="flex items-center w-full p-2 text-red-400 hover:bg-gray-700 hover:text-red-300 transition-colors duration-200"
-          >
-            <FaSignOutAlt className="mr-2" />
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
       </nav>
+
+      {/* Sección de Usuario y Logout */}
+      <div className="p-4 border-t border-gray-700">
+        <div className="flex items-center mb-4">
+          <FaUserCircle className="text-2xl text-gray-400 mr-3" />
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-white truncate">
+              {username}
+            </span>
+            <span className="text-xs text-gray-400 capitalize">
+              {userRole}
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center w-full p-2 rounded-md text-red-400 hover:bg-red-800 hover:text-white transition-colors duration-200"
+        >
+          <FaSignOutAlt className="mr-3" />
+          <span className="text-sm">Cerrar Sesión</span>
+        </button>
+      </div>
     </aside>
   );
 };
 
 export default Sidebar;
-
-
