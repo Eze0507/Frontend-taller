@@ -16,13 +16,13 @@ const RegisterForm = ({
   error,
 }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center w-full dark:bg-gray-950">
-      <div className="bg-white dark:bg-gray-900 shadow-md rounded-lg px-8 py-6 max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-4 dark:text-gray-200">Crear Cuenta</h1>
+    <div className="min-h-screen flex items-center justify-center w-full bg-gray-50">
+      <div className="bg-white shadow-md rounded-lg px-8 py-6 max-w-md">
+        <h1 className="text-2xl font-bold text-center mb-4 text-gray-800">Crear Cuenta</h1>
         
         <form onSubmit={onSubmit}>
           <div className="mb-4">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
               Usuario
             </label>
             <input
@@ -38,7 +38,7 @@ const RegisterForm = ({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email
             </label>
             <input
@@ -54,7 +54,7 @@ const RegisterForm = ({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Contraseña
             </label>
             <input
@@ -70,7 +70,7 @@ const RegisterForm = ({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="password2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="password2" className="block text-sm font-medium text-gray-700 mb-2">
               Repetir contraseña
             </label>
             <input
@@ -100,7 +100,7 @@ const RegisterForm = ({
 
         {/* Enlace para iniciar sesión */}
         <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-600">
             ¿Ya tienes una cuenta?{" "}
             <Link 
               to="/login" 

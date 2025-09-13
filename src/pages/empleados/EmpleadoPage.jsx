@@ -19,6 +19,13 @@ const EmpleadoPage = () => {
     setLoading(true);
     try {
       const data = await fetchAllEmpleados();
+      console.log('📋 Datos de empleados recibidos del backend:', data);
+      console.log('📋 Primer empleado (ejemplo):', data[0]);
+      if (data[0]) {
+        console.log('🔍 Claves disponibles en el primer empleado:', Object.keys(data[0]));
+        console.log('🔍 ID del primer empleado:', data[0].id);
+        console.log('🔍 PK del primer empleado:', data[0].pk);
+      }
       setEmpleados(data);
     } catch (e) {
       console.error(e.message);
@@ -57,11 +64,30 @@ const EmpleadoPage = () => {
     setShowForm(true); 
   };
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Seguro que quieres eliminar este empleado?")) return;
+    console.log('🗑️ Intentando eliminar empleado con ID:', id);
+    
+    // Validar que el ID sea válido
+    if (!id || id === "" || id === null || id === "undefined") {
+      console.error('❌ ID inválido recibido:', id);
+      alert('Error: No se puede eliminar este empleado porque no tiene un ID válido');
+      return;
+    }
+    
+    if (!window.confirm("¿Seguro que quieres eliminar este empleado?")) {
+      console.log('❌ Eliminación cancelada por el usuario');
+      return;
+    }
+    
     try {
+      console.log('🚀 Iniciando eliminación...');
       await deleteEmpleado(id);
+      console.log('✅ Eliminación exitosa, recargando lista...');
+      alert('Empleado eliminado correctamente');
       loadEmpleados();
-    } catch (e) { console.error(e.message); }
+    } catch (e) { 
+      console.error('❌ Error en eliminación:', e.message);
+      alert('Error al eliminar empleado: ' + e.message);
+    }
   };
 
   const handleFormSubmit = async (formData) => {
@@ -95,7 +121,7 @@ const EmpleadoPage = () => {
       <EmpleadoList
         empleados={empleados}
         onEdit={handleEdit}
-        onDelete={(row)=>handleDelete(row.id)}
+        onDelete={handleDelete}
         onAddNew={()=>{ setEditing(null); setShowForm(true); }}
       />
 

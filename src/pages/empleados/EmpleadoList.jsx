@@ -26,23 +26,27 @@ const EmpleadoList = ({ empleados, onEdit, onDelete, onAddNew }) => {
   }, [searchTerm, empleados]);
 
   const columns = ["nombre", "apellido", "ci", "telefono", "cargo", "usuario", "estado"];
-  const tableData = filtered.map((e) => ({
-    id: e?.id || "",
-    nombre: e?.nombre || "",
-    apellido: e?.apellido || "",
-    ci: e?.ci || "",
-    telefono: e?.telefono || "",
-    direccion: e?.direccion || "",
-    sexo: e?.sexo || "M",
-    estado: e?.estado ?? true,
-    sueldo: e?.sueldo ?? 0,
-    // Para mostrar en la tabla
-    cargo: e?.cargo_nombre || (typeof e?.cargo === "object" ? e?.cargo?.nombre : e?.cargo) || "",
-    usuario: e?.usuario_nombre || (typeof e?.usuario === "object" ? e?.usuario?.username : "") || "Sin usuario",
-    // Para edición - mantener los objetos completos
-    cargo_obj: e?.cargo || null,
-    usuario_obj: e?.usuario || null,
-  }));
+  const tableData = filtered.map((e) => {
+    console.log('📊 Procesando empleado:', e);
+    return {
+      id: e?.id || e?.pk || '', // Usar pk como alternativa si id no existe
+      nombre: e?.nombre || "",
+      apellido: e?.apellido || "",
+      ci: e?.ci || "",
+      telefono: e?.telefono || "",
+      direccion: e?.direccion || "",
+      sexo: e?.sexo || "M",
+      estado: e?.estado ?? true,
+      sueldo: e?.sueldo ?? 0,
+      // Para mostrar en la tabla
+      cargo: e?.cargo_nombre || (typeof e?.cargo === "object" ? e?.cargo?.nombre : e?.cargo) || "",
+      usuario: e?.usuario_nombre || (typeof e?.usuario === "object" ? e?.usuario?.username : "") || "Sin usuario",
+      estado: e?.estado === false ? "Inactivo" : "Activo",
+      // Para edición - mantener los objetos completos
+      cargo_obj: e?.cargo || null,
+      usuario_obj: e?.usuario || null,
+    };
+  });
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md w-full">
@@ -69,8 +73,11 @@ const EmpleadoList = ({ empleados, onEdit, onDelete, onAddNew }) => {
         title="Empleados"
         columns={columns}
         data={tableData}
-        onEdit={(row) => onEdit(row)}
-        onDelete={(row) => onDelete(row.id)}
+        onEdit={(row) => {
+          console.log('✏️ Editando desde tabla:', row);
+          onEdit(row);
+        }}
+        onDelete={onDelete}
       />
     </div>
   );

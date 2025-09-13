@@ -77,10 +77,34 @@ export async function updateEmpleado(id, payload) {
 
 export async function deleteEmpleado(id) {
   try {
-    await apiClient.delete(`/empleados/${id}/`);
+    console.log('🗑️ Eliminando empleado con ID:', id);
+    const response = await apiClient.delete(`/empleados/${id}/`);
+    console.log('✅ Empleado eliminado exitosamente');
     return true;
   } catch (error) {
-    throw new Error('Error al eliminar el empleado.');
+    console.error('❌ Error al eliminar empleado:', error);
+    
+    if (error.response) {
+      console.error('📊 Detalles del error:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      });
+      
+      // Manejo específico de errores 403
+      if (error.response.status === 403) {
+        throw new Error('No tienes permisos para eliminar empleados. Contacta al administrador.');
+      }
+      
+      // Manejo específico de errores 404
+      if (error.response.status === 404) {
+        throw new Error('El empleado no existe o ya fue eliminado.');
+      }
+      
+      throw new Error(JSON.stringify(error.response.data));
+    }
+    throw new Error('Error de conexión al eliminar el empleado.');
   }
 }
 

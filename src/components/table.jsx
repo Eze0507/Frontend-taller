@@ -38,10 +38,21 @@ const CustomTable = ({ title = "Lista", columns = [], data = [], onEdit, onDelet
                   ))}
 
                   <td className="p-4 border-b border-slate-200 flex gap-2">
-                    <Button variant="editar" onClick={() => onEdit(row)}>
+                    <Button variant="editar" onClick={() => {
+                      console.log('🔧 Botón Editar clickeado para fila:', row);
+                      onEdit(row);
+                    }}>
                       Editar
                     </Button>
-                    <Button variant="cancelar" onClick={() => onDelete(row.id)}>
+                    <Button variant="cancelar" onClick={() => {
+                      console.log('🗑️ Botón Eliminar clickeado para ID:', row.id);
+                      if (!row.id || row.id === "" || row.id === null) {
+                        console.error('❌ ID inválido para eliminar:', row.id);
+                        alert('Error: No se puede eliminar este elemento porque no tiene un ID válido');
+                        return;
+                      }
+                      onDelete(row.id);
+                    }}>
                       Eliminar
                     </Button>
                   </td>

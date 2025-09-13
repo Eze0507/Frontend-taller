@@ -4,13 +4,13 @@ import { Link } from "react-router-dom";
 
 const LoginForm = ({ username, password, setUsername, setPassword, onSubmit, loading, error }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center w-full dark:bg-gray-950">
-      <div className="bg-white dark:bg-gray-900 shadow-md rounded-lg px-8 py-6 max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-4 dark:text-gray-200">Welcome Back!</h1>
+    <div className="min-h-screen flex items-center justify-center w-full bg-gray-50">
+      <div className="bg-white shadow-md rounded-lg px-8 py-6 max-w-md">
+        <h1 className="text-2xl font-bold text-center mb-4 text-gray-800">Welcome Back!</h1>
         
         <form onSubmit={onSubmit}>
           <div className="mb-4">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
               Username
             </label>
             <input
@@ -26,7 +26,7 @@ const LoginForm = ({ username, password, setUsername, setPassword, onSubmit, loa
           </div>
 
           <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
             <input
@@ -56,7 +56,7 @@ const LoginForm = ({ username, password, setUsername, setPassword, onSubmit, loa
 
         {/* Enlace para registrarse */}
         <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-600">
             ¿No tienes una cuenta?{" "}
             <Link 
               to="/register" 

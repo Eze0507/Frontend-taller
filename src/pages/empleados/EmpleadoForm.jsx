@@ -22,7 +22,7 @@ const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios =
       direccion: initialData?.direccion || "",
       telefono: initialData?.telefono || "",
       sexo: initialData?.sexo || "M",
-      estado: initialData?.estado ?? true,
+      estado: initialData?.estado !== undefined ? Boolean(initialData.estado) : true,
       sueldo: initialData?.sueldo ?? 0,
       // Manejo mejorado para cargo - priorizar cargo_obj si existe
       cargo: initialData?.cargo_obj?.id || 
@@ -39,6 +39,8 @@ const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios =
     console.log('📝 Formulario inicializado con:', {
       id: initialData?.id,
       nombre: initialData?.nombre,
+      estado: initialData?.estado,
+      estado_boolean: Boolean(initialData?.estado),
       cargo: initialData?.cargo_obj?.id || initialData?.cargo,
       usuario: initialData?.usuario_obj?.id || initialData?.usuario,
     });
@@ -120,7 +122,8 @@ const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios =
       <div>
         <label className="block text-sm font-medium mb-1 text-gray-700">Estado</label>
         <select
-          name="estado" value={String(form.estado)}
+          name="estado" 
+          value={form.estado ? "true" : "false"}
           onChange={(e)=>setForm(f=>({ ...f, estado: e.target.value === "true" }))}
           className="w-full px-3 py-2 rounded-md bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
