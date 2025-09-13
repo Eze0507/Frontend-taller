@@ -32,9 +32,7 @@ const AppRouter = () => {
         {/* Ruta por defecto */}
         <Route
           path="/"
-          element={
-            isAuthenticated ? <Navigate to="/admin/dashboard" /> : <Navigate to="/login" />
-          }
+          element={<Navigate to="/login" />}
         />
         <Route path="/register" element={<RegisterPage />} />
 
