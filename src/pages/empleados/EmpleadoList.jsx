@@ -36,12 +36,12 @@ const EmpleadoList = ({ empleados, onEdit, onDelete, onAddNew }) => {
       telefono: e?.telefono || "",
       direccion: e?.direccion || "",
       sexo: e?.sexo || "M",
-      estado: e?.estado ?? true,
+      estado_valor: e?.estado ?? true, // Valor booleano original
       sueldo: e?.sueldo ?? 0,
       // Para mostrar en la tabla
       cargo: e?.cargo_nombre || (typeof e?.cargo === "object" ? e?.cargo?.nombre : e?.cargo) || "",
       usuario: e?.usuario_nombre || (typeof e?.usuario === "object" ? e?.usuario?.username : "") || "Sin usuario",
-      estado: e?.estado === false ? "Inactivo" : "Activo",
+      estado: e?.estado === false ? "Inactivo" : "Activo", // Texto para mostrar
       // Para edición - mantener los objetos completos
       cargo_obj: e?.cargo || null,
       usuario_obj: e?.usuario || null,

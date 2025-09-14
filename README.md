@@ -14,4 +14,4 @@ Sigue estos pasos para instalar y correr el proyecto en tu máquina local.
    npm install
 
 ### 4. Correr el proyecto:
-   npm run dev
+  npm run dev 

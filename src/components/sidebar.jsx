@@ -13,10 +13,13 @@ import {
   FaUserCircle,
   FaWrench,
   FaCar,
+  FaUser,
 } from "react-icons/fa";
+import UserProfile from './UserProfile.jsx';
 
 const Sidebar = () => {
   const [openMenu, setOpenMenu] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation(); // Hook para detectar cambios de ruta
   const [username, setUsername] = useState(localStorage.getItem("username") || "Usuario");
@@ -36,6 +39,14 @@ const Sidebar = () => {
     // 2. Redirigir al usuario a la página de login.
     // `replace: true` evita que el usuario pueda volver al panel con el botón "atrás".
     navigate("/login", { replace: true });
+  };
+
+  const handleShowProfile = () => {
+    setShowProfile(true);
+  };
+
+  const handleCloseProfile = () => {
+    setShowProfile(false);
   };
 
   // Este efecto se ejecutará cada vez que cambie la URL.
@@ -194,14 +205,29 @@ const Sidebar = () => {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center w-full p-2 rounded-md text-red-400 hover:bg-red-800 hover:text-white transition-colors duration-200"
-        >
-          <FaSignOutAlt className="mr-3" />
-          <span className="text-sm">Cerrar Sesión</span>
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={handleShowProfile}
+            className="flex items-center w-full p-2 rounded-md text-indigo-400 hover:bg-indigo-800 hover:text-white transition-colors duration-200"
+          >
+            <FaUser className="mr-3" />
+            <span className="text-sm">Ver Perfil</span>
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center w-full p-2 rounded-md text-red-400 hover:bg-red-800 hover:text-white transition-colors duration-200"
+          >
+            <FaSignOutAlt className="mr-3" />
+            <span className="text-sm">Cerrar Sesión</span>
+          </button>
+        </div>
       </div>
+
+      {/* Modal del Perfil */}
+      {showProfile && (
+        <UserProfile onClose={handleCloseProfile} />
+      )}
     </aside>
   );
 };

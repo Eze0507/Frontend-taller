@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaUser, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
+import { FaUser, FaEdit, FaSave, FaTimes, FaKey, FaEye, FaEyeSlash, FaLock } from 'react-icons/fa';
+import { fetchUserProfile, updateUserProfile, changePassword } from '../api/userProfileApi.jsx';
 
 const UserProfile = ({ onClose }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [currentView, setCurrentView] = useState('view'); // 'view', 'edit', 'password'
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+  const [userType, setUserType] = useState(null); // 'empleado' o 'cliente'
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
@@ -13,9 +15,18 @@ const UserProfile = ({ onClose }) => {
     username: '',
     email: ''
   });
-
-  // Determinar si es empleado o cliente basado en el token o algún indicador
-  const [userType, setUserType] = useState('empleado'); // 'empleado' o 'cliente'
+  const [passwordData, setPasswordData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    old: false,
+    new: false,
+    confirm: false
+  });
+  const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     fetchUserProfile();
@@ -23,32 +34,59 @@ const UserProfile = ({ onClose }) => {
 
   const fetchUserProfile = async () => {
     setLoading(true);
+    setErrors({});
     try {
       const token = localStorage.getItem('access');
-      const endpoint = userType === 'empleado' ? '/empleados/profile/' : '/clientes/profile/';
       
-      const response = await fetch(`http://127.0.0.1:8000/api${endpoint}`, {
+      // Intentar obtener perfil de empleado primero
+      let response = await fetch('http://127.0.0.1:8000/api/empleado/profile/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
+      let data;
+      let type = 'empleado';
+      
       if (response.ok) {
-        const data = await response.json();
-        setUserProfile(data);
-        setFormData({
-          nombre: data.nombre || '',
-          apellido: data.apellido || '',
-          direccion: data.direccion || '',
-          telefono: data.telefono || '',
-          username: data.username || '',
-          email: data.email || '',
-          ...(userType === 'empleado' ? { ci: data.ci || '' } : { tipo_cliente: data.tipo_cliente || '' })
+        data = await response.json();
+      } else if (response.status === 404) {
+        // Si no es empleado, intentar cliente
+        response = await fetch('http://127.0.0.1:8000/api/cliente/profile/', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
+        
+        if (response.ok) {
+          data = await response.json();
+          type = 'cliente';
+        } else {
+          throw new Error('No se encontró perfil de usuario');
+        }
+      } else {
+        throw new Error('Error al obtener el perfil');
       }
+
+      setUserType(type);
+      setUserProfile(data);
+      setFormData({
+        nombre: data.nombre || '',
+        apellido: data.apellido || '',
+        direccion: data.direccion || '',
+        telefono: data.telefono || '',
+        username: data.usuario_info?.username || data.username || '',
+        email: data.usuario_info?.email || data.email || '',
+        ...(type === 'empleado' ? { ci: data.ci || '', sueldo: data.sueldo || '' } : { 
+          nit: data.nit || '', 
+          tipo_cliente: data.tipo_cliente || 'NATURAL' 
+        })
+      });
     } catch (error) {
       console.error('Error fetching profile:', error);
+      setErrors({ general: 'Error al cargar el perfil del usuario' });
     } finally {
       setLoading(false);
     }
@@ -57,13 +95,33 @@ const UserProfile = ({ onClose }) => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Limpiar errores al escribir
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
-  const handleSave = async () => {
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+    // Limpiar errores al escribir
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const handleSaveProfile = async () => {
     setLoading(true);
+    setErrors({});
+    setSuccessMessage('');
+    
     try {
       const token = localStorage.getItem('access');
-      const endpoint = userType === 'empleado' ? '/empleados/profile/' : '/clientes/profile/';
+      const endpoint = userType === 'empleado' ? '/empleado/profile/' : '/cliente/profile/';
       
       const response = await fetch(`http://127.0.0.1:8000/api${endpoint}`, {
         method: 'PUT',
@@ -77,17 +135,89 @@ const UserProfile = ({ onClose }) => {
       if (response.ok) {
         const updatedData = await response.json();
         setUserProfile(updatedData);
-        setIsEditing(false);
+        setCurrentView('view');
+        setSuccessMessage('Perfil actualizado exitosamente');
         
         // Actualizar el nombre en localStorage si cambió
         if (formData.username) {
           localStorage.setItem('username', formData.username);
         }
+        
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => setSuccessMessage(''), 3000);
       } else {
-        console.error('Error updating profile');
+        const errorData = await response.json();
+        if (errorData.nombre) setErrors(prev => ({ ...prev, nombre: errorData.nombre[0] }));
+        if (errorData.apellido) setErrors(prev => ({ ...prev, apellido: errorData.apellido[0] }));
+        if (errorData.telefono) setErrors(prev => ({ ...prev, telefono: errorData.telefono[0] }));
+        if (errorData.email) setErrors(prev => ({ ...prev, email: errorData.email[0] }));
+        if (errorData.nit) setErrors(prev => ({ ...prev, nit: errorData.nit[0] }));
+        if (errorData.ci) setErrors(prev => ({ ...prev, ci: errorData.ci[0] }));
       }
     } catch (error) {
       console.error('Error updating profile:', error);
+      setErrors({ general: 'Error al actualizar el perfil' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setLoading(true);
+    setErrors({});
+    setSuccessMessage('');
+
+    // Validar que las contraseñas coincidan
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      setErrors({ confirm_password: 'Las contraseñas no coinciden' });
+      setLoading(false);
+      return;
+    }
+
+    // Validar longitud mínima
+    if (passwordData.new_password.length < 8) {
+      setErrors({ new_password: 'La contraseña debe tener al menos 8 caracteres' });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access');
+      
+      const response = await fetch('http://127.0.0.1:8000/api/change-password/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          old_password: passwordData.old_password,
+          new_password: passwordData.new_password
+        }),
+      });
+
+      if (response.ok) {
+        setCurrentView('view');
+        setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+        setSuccessMessage('Contraseña cambiada exitosamente');
+        
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        const errorData = await response.json();
+        if (errorData.old_password) {
+          setErrors({ old_password: errorData.old_password[0] });
+        }
+        if (errorData.new_password) {
+          setErrors({ new_password: errorData.new_password[0] });
+        }
+        if (errorData.detail) {
+          setErrors({ general: errorData.detail });
+        }
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setErrors({ general: 'Error al cambiar la contraseña' });
     } finally {
       setLoading(false);
     }
@@ -96,9 +226,9 @@ const UserProfile = ({ onClose }) => {
   if (loading && !userProfile) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full mx-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Cargando perfil...</p>
           </div>
         </div>
@@ -106,13 +236,266 @@ const UserProfile = ({ onClose }) => {
     );
   }
 
+  const renderViewMode = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+          <p className="px-3 py-2 bg-gray-50 rounded-md border">{userProfile?.nombre || 'No especificado'}</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+          <p className="px-3 py-2 bg-gray-50 rounded-md border">{userProfile?.apellido || 'No especificado'}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+          <p className="px-3 py-2 bg-gray-50 rounded-md border">
+            {userProfile?.usuario_info?.username || userProfile?.username || 'No especificado'}
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <p className="px-3 py-2 bg-gray-50 rounded-md border">
+            {userProfile?.usuario_info?.email || userProfile?.email || 'No especificado'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {userType === 'empleado' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CI</label>
+            <p className="px-3 py-2 bg-gray-50 rounded-md border">{userProfile?.ci || 'No especificado'}</p>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">NIT</label>
+            <p className="px-3 py-2 bg-gray-50 rounded-md border">{userProfile?.nit || 'No especificado'}</p>
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+          <p className="px-3 py-2 bg-gray-50 rounded-md border">{userProfile?.telefono || 'No especificado'}</p>
+        </div>
+      </div>
+
+      {userType === 'cliente' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Cliente</label>
+          <p className="px-3 py-2 bg-gray-50 rounded-md border">
+            {userProfile?.tipo_cliente === 'EMPRESA' ? 'Empresa' : 'Natural'}
+          </p>
+        </div>
+      )}
+
+      {userType === 'empleado' && userProfile?.sueldo && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Sueldo</label>
+          <p className="px-3 py-2 bg-gray-50 rounded-md border">{userProfile.sueldo}</p>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+        <p className="px-3 py-2 bg-gray-50 rounded-md border">{userProfile?.direccion || 'No especificado'}</p>
+      </div>
+    </div>
+  );
+
+  const renderEditMode = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+          <input
+            type="text"
+            name="nombre"
+            value={formData.nombre}
+            onChange={handleInputChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.nombre ? 'border-red-300' : 'border-gray-300'
+            }`}
+          />
+          {errors.nombre && <p className="text-red-500 text-sm mt-1">{errors.nombre}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
+          <input
+            type="text"
+            name="apellido"
+            value={formData.apellido}
+            onChange={handleInputChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.apellido ? 'border-red-300' : 'border-gray-300'
+            }`}
+          />
+          {errors.apellido && <p className="text-red-500 text-sm mt-1">{errors.apellido}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {userType === 'empleado' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CI *</label>
+            <input
+              type="text"
+              name="ci"
+              value={formData.ci}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                errors.ci ? 'border-red-300' : 'border-gray-300'
+              }`}
+            />
+            {errors.ci && <p className="text-red-500 text-sm mt-1">{errors.ci}</p>}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">NIT *</label>
+            <input
+              type="text"
+              name="nit"
+              value={formData.nit}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                errors.nit ? 'border-red-300' : 'border-gray-300'
+              }`}
+            />
+            {errors.nit && <p className="text-red-500 text-sm mt-1">{errors.nit}</p>}
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+          <input
+            type="text"
+            name="telefono"
+            value={formData.telefono}
+            onChange={handleInputChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.telefono ? 'border-red-300' : 'border-gray-300'
+            }`}
+          />
+          {errors.telefono && <p className="text-red-500 text-sm mt-1">{errors.telefono}</p>}
+        </div>
+      </div>
+
+      {userType === 'cliente' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Cliente</label>
+          <select
+            name="tipo_cliente"
+            value={formData.tipo_cliente}
+            onChange={handleInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="NATURAL">Natural</option>
+            <option value="EMPRESA">Empresa</option>
+          </select>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+        <textarea
+          name="direccion"
+          value={formData.direccion}
+          onChange={handleInputChange}
+          rows="3"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+    </div>
+  );
+
+  const renderPasswordMode = () => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual *</label>
+        <div className="relative">
+          <input
+            type={showPasswords.old ? "text" : "password"}
+            name="old_password"
+            value={passwordData.old_password}
+            onChange={handlePasswordChange}
+            className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.old_password ? 'border-red-300' : 'border-gray-300'
+            }`}
+            placeholder="Ingresa tu contraseña actual"
+          />
+          <button
+            type="button"
+            onClick={() => togglePasswordVisibility('old')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+          >
+            {showPasswords.old ? <FaEyeSlash /> : <FaEye />}
+          </button>
+        </div>
+        {errors.old_password && <p className="text-red-500 text-sm mt-1">{errors.old_password}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña *</label>
+        <div className="relative">
+          <input
+            type={showPasswords.new ? "text" : "password"}
+            name="new_password"
+            value={passwordData.new_password}
+            onChange={handlePasswordChange}
+            className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.new_password ? 'border-red-300' : 'border-gray-300'
+            }`}
+            placeholder="Ingresa tu nueva contraseña"
+          />
+          <button
+            type="button"
+            onClick={() => togglePasswordVisibility('new')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+          >
+            {showPasswords.new ? <FaEyeSlash /> : <FaEye />}
+          </button>
+        </div>
+        {errors.new_password && <p className="text-red-500 text-sm mt-1">{errors.new_password}</p>}
+        <p className="text-xs text-gray-500 mt-1">La contraseña debe tener al menos 8 caracteres</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nueva Contraseña *</label>
+        <div className="relative">
+          <input
+            type={showPasswords.confirm ? "text" : "password"}
+            name="confirm_password"
+            value={passwordData.confirm_password}
+            onChange={handlePasswordChange}
+            className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.confirm_password ? 'border-red-300' : 'border-gray-300'
+            }`}
+            placeholder="Confirma tu nueva contraseña"
+          />
+          <button
+            type="button"
+            onClick={() => togglePasswordVisibility('confirm')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+          >
+            {showPasswords.confirm ? <FaEyeSlash /> : <FaEye />}
+          </button>
+        </div>
+        {errors.confirm_password && <p className="text-red-500 text-sm mt-1">{errors.confirm_password}</p>}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-lg shadow-md p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-            <FaUser className="mr-2 text-blue-600" />
-            {isEditing ? 'Editar Perfil' : 'Mi Perfil'}
+            <FaUser className="mr-2 text-indigo-600" />
+            {currentView === 'view' && 'Mi Perfil'}
+            {currentView === 'edit' && 'Editar Perfil'}
+            {currentView === 'password' && 'Cambiar Contraseña'}
           </h2>
           <button
             onClick={onClose}
@@ -122,187 +505,86 @@ const UserProfile = ({ onClose }) => {
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* Nombre */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                name="nombre"
-                value={formData.nombre}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            ) : (
-              <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.nombre || 'No especificado'}</p>
-            )}
-          </div>
-
-          {/* Apellido */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Apellido
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                name="apellido"
-                value={formData.apellido}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            ) : (
-              <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.apellido || 'No especificado'}</p>
-            )}
-          </div>
-
-          {/* Username */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Usuario
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            ) : (
-              <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.username || 'No especificado'}</p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            {isEditing ? (
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            ) : (
-              <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.email || 'No especificado'}</p>
-            )}
-          </div>
-
-          {/* Teléfono */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Teléfono
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                name="telefono"
-                value={formData.telefono}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            ) : (
-              <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.telefono || 'No especificado'}</p>
-            )}
-          </div>
-
-          {/* Dirección */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dirección
-            </label>
-            {isEditing ? (
-              <textarea
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleInputChange}
-                rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            ) : (
-              <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.direccion || 'No especificado'}</p>
-            )}
-          </div>
-
-          {/* Campo específico para empleado: CI */}
-          {userType === 'empleado' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                CI
-              </label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  name="ci"
-                  value={formData.ci}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.ci || 'No especificado'}</p>
-              )}
+        <div className="p-6">
+          {/* Messages */}
+          {errors.general && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {errors.general}
+            </div>
+          )}
+          {successMessage && (
+            <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+              {successMessage}
             </div>
           )}
 
-          {/* Campo específico para cliente: Tipo de cliente */}
-          {userType === 'cliente' && (
+          {/* Content */}
+          {currentView === 'view' && renderViewMode()}
+          {currentView === 'edit' && renderEditMode()}
+          {currentView === 'password' && renderPasswordMode()}
+
+          {/* Buttons */}
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo de Cliente
-              </label>
-              {isEditing ? (
-                <select
-                  name="tipo_cliente"
-                  value={formData.tipo_cliente}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              {currentView === 'view' && (
+                <button
+                  onClick={() => setCurrentView('password')}
+                  className="px-4 py-2 text-indigo-600 border border-indigo-600 rounded-md hover:bg-indigo-50 transition-colors duration-200 flex items-center mr-3"
                 >
-                  <option value="">Seleccionar tipo</option>
-                  <option value="particular">Particular</option>
-                  <option value="empresa">Empresa</option>
-                </select>
-              ) : (
-                <p className="px-3 py-2 bg-gray-50 rounded-md">{userProfile?.tipo_cliente || 'No especificado'}</p>
+                  <FaKey className="mr-2" />
+                  Cambiar Contraseña
+                </button>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Botones */}
-        <div className="flex justify-end space-x-3 mt-6">
-          {isEditing ? (
-            <>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center"
-              >
-                <FaSave className="mr-2" />
-                {loading ? 'Guardando...' : 'Guardar'}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center"
-            >
-              <FaEdit className="mr-2" />
-              Editar Perfil
-            </button>
-          )}
+            
+            <div className="flex space-x-3">
+              {currentView !== 'view' && (
+                <button
+                  onClick={() => {
+                    setCurrentView('view');
+                    setErrors({});
+                    setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <FaTimes className="mr-2" />
+                  Cancelar
+                </button>
+              )}
+              
+              {currentView === 'view' && (
+                <button
+                  onClick={() => setCurrentView('edit')}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200 flex items-center"
+                >
+                  <FaEdit className="mr-2" />
+                  Editar Perfil
+                </button>
+              )}
+              
+              {currentView === 'edit' && (
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={loading}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200 flex items-center disabled:opacity-50"
+                >
+                  <FaSave className="mr-2" />
+                  {loading ? 'Guardando...' : 'Guardar'}
+                </button>
+              )}
+              
+              {currentView === 'password' && (
+                <button
+                  onClick={handleChangePassword}
+                  disabled={loading || !passwordData.old_password || !passwordData.new_password || !passwordData.confirm_password}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200 flex items-center disabled:opacity-50"
+                >
+                  <FaLock className="mr-2" />
+                  {loading ? 'Cambiando...' : 'Cambiar Contraseña'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
