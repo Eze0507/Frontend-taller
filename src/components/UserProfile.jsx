@@ -396,6 +396,35 @@ const UserProfile = ({ onClose }) => {
         </div>
       )}
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+          <input
+            type="text"
+            name="username"
+            value={formData.username}
+            onChange={handleInputChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.username ? 'border-red-300' : 'border-gray-300'
+            }`}
+          />
+          {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleInputChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              errors.email ? 'border-red-300' : 'border-gray-300'
+            }`}
+          />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
         <textarea
