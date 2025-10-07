@@ -14,10 +14,11 @@ import {
   FaWrench,
   FaCar,
   FaUser,
+  FaBars,
 } from "react-icons/fa";
 import UserProfile from './UserProfile.jsx';
 
-const Sidebar = () => {
+const Sidebar = ({ isVisible = true, onToggle }) => {
   const [openMenu, setOpenMenu] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const navigate = useNavigate();
@@ -99,13 +100,10 @@ const Sidebar = () => {
       icon: <FaCogs className="mr-2" />,
       key: "operaciones",
       subItems: [
-        { name: "Diagnóstico", path: "/admin/operaciones/diagnosticos" },
-        { name: "Presupuesto", path: "/admin/operaciones/presupuestos" },
-        { name: "Orden de Trabajo", path: "/admin/operaciones/ordenes" },
+        { name: "Presupuesto", path: "/presupuestos" },
+        { name: "Orden de Trabajo", path: "/ordenes" },
         { name: "Vehículo", path: "/admin/operaciones/vehiculos" },
-        { name: "Modelo", path: "/admin/operaciones/modelos" },
-        { name: "Marca", path: "/admin/operaciones/marcas" },
-        { name: "Repuestos", path: "/admin/operaciones/repuestos" },
+        { name: "inventario", path: "/admin/operaciones/inventario" },
         { name: "Servicios", path: "/admin/operaciones/servicios" },
         { name: "Proveedores", path: "/admin/operaciones/proveedores" },
       ],
@@ -124,9 +122,33 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="bg-gray-800 text-white w-64 flex flex-col">
-      <div className="p-4 text-center border-b border-gray-700 shadow-md">
-        <Link to="/admin/home" className="block hover:opacity-80 transition-opacity duration-200">
+    <>
+      {/* Botón toggle cuando el sidebar está oculto */}
+      {!isVisible && (
+        <button
+          onClick={onToggle}
+          className="fixed top-4 left-4 z-50 bg-gray-800 text-white p-3 rounded-md shadow-lg hover:bg-gray-700 transition-all duration-200 transform hover:scale-105"
+        >
+          <FaBars className="text-lg" />
+        </button>
+      )}
+      
+      <aside className={`bg-gray-800 text-white w-64 flex flex-col absolute top-0 left-0 h-full z-50 sidebar-transition ${
+        isVisible ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="p-4 text-center border-b border-gray-700 shadow-md">
+          {/* Botón toggle cuando el sidebar está visible */}
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex-1"></div>
+            <button
+              onClick={onToggle}
+              className="text-gray-400 hover:text-white transition-colors duration-200 p-1"
+            >
+              <FaBars className="text-lg" />
+            </button>
+          </div>
+          
+          <Link to="/admin/home" className="block hover:opacity-80 transition-opacity duration-200">
           <div className="flex items-center justify-center mb-2">
             <div className="relative">
               <FaCar className="text-3xl text-blue-400 mr-1" />
@@ -139,7 +161,7 @@ const Sidebar = () => {
       </div>
 
       {/* Menú Desplazable */}
-      <nav className="flex-1 overflow-y-auto p-4">
+      <nav className="flex-1 overflow-y-auto p-4 sidebar-scrollbar">
         <ul className="space-y-2">
           {menuItems.map((menu) => (
             <li key={menu.key}>
@@ -229,6 +251,7 @@ const Sidebar = () => {
         <UserProfile onClose={handleCloseProfile} />
       )}
     </aside>
+    </>
   );
 };
 

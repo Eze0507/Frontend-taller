@@ -1,7 +1,21 @@
 // src/api/cargoApi.jsx
 import axios from "axios";
 
-const API_URL = "/api/cargos";
+// Instancia de Axios igual que en usersApi
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+});
+
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export const fetchAllCargos = async () => {
   try {
@@ -45,19 +59,4 @@ export const deleteCargo = async (id) => {
     throw new Error('Error al eliminar el cargo.');
   }
 };
- 
-// Instancia de Axios igual que en usersApi
-const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api',
-});
 
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);

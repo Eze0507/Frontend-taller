@@ -10,6 +10,10 @@ import RegisterPage from "../pages/register/RegisterPage.jsx";
 import EmpleadoPage from "../pages/empleados/EmpleadoPage.jsx";
 import RolePage from "../pages/roles/rolePage.jsx";
 import ClientePage from "../pages/cliente/ClientePage.jsx";
+import OrdenPage from "../pages/ordenes/OrdenPage.jsx";
+import OrdenDetalle from "../pages/ordenes/OrdenDetalle.jsx";
+import PresupuestoPage from "../pages/presupuestos/PresupuestoPage.jsx";
+import PresupuestoDetalle from "../pages/presupuestos/PresupuestoDetalle.jsx";
 
 const AdminRoutes = () => {
   const isAuthenticated = !!localStorage.getItem("access");
@@ -53,6 +57,10 @@ const AppRouter = () => {
           <Route path="/admin/empleados" element={<EmpleadoPage />} />
           <Route path="/admin/clientes" element={<ClientePage />} />
           <Route path="/admin/roles" element={<RolePage />} />
+          <Route path="/ordenes" element={<OrdenPage />} />
+          <Route path="/ordenes/:id" element={<OrdenDetalle />} />
+          <Route path="/presupuestos" element={<PresupuestoPage />} />
+          <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
         </Route>
       </Routes>
     </BrowserRouter>
