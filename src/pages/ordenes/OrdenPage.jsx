@@ -90,6 +90,41 @@ const OrdenPage = () => {
     alert("Funcionalidad de nueva orden - próximamente");
   };
 
+  const handleEstadoChange = async (ordenId, nuevoEstado) => {
+    try {
+      console.log(`🔄 Cambiando estado de orden ${ordenId} a: ${nuevoEstado}`);
+      
+      // Encontrar la orden actual
+      const ordenActual = ordenes.find(orden => orden.id === ordenId);
+      if (!ordenActual) {
+        throw new Error('Orden no encontrada');
+      }
+
+      // Crear payload con el nuevo estado
+      const payload = {
+        ...ordenActual,
+        estado: nuevoEstado
+      };
+
+      // Hacer la llamada a la API
+      await updateOrden(ordenId, toApiOrden(payload));
+      
+      // Actualizar el estado local
+      setOrdenes(prevOrdenes => 
+        prevOrdenes.map(orden => 
+          orden.id === ordenId 
+            ? { ...orden, estado: nuevoEstado }
+            : orden
+        )
+      );
+
+      console.log(`✅ Estado actualizado correctamente a: ${nuevoEstado}`);
+    } catch (error) {
+      console.error('❌ Error al cambiar estado:', error.message);
+      alert('Error al cambiar el estado: ' + error.message);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 relative">
       <OrdenList
@@ -97,6 +132,7 @@ const OrdenPage = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAddNew={handleAddNew}
+        onEstadoChange={handleEstadoChange}
       />
     </div>
   );

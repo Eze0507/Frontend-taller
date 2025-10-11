@@ -17,6 +17,7 @@ import {
   FaBars,
 } from "react-icons/fa";
 import UserProfile from './UserProfile.jsx';
+import { useAuth } from '../hooks/useAuth.jsx';
 
 const Sidebar = ({ isVisible = true, onToggle }) => {
   const [openMenu, setOpenMenu] = useState(null);
@@ -26,20 +27,22 @@ const Sidebar = ({ isVisible = true, onToggle }) => {
   const [username, setUsername] = useState(localStorage.getItem("username") || "Usuario");
   const [userRole, setUserRole] = useState("Invitado");
 
+  // Usar el hook de autenticación
+  const { logout } = useAuth();
+
   const toggleMenu = (menu) => {
     setOpenMenu(openMenu === menu ? null : menu);
   };
 
-  const handleLogout = () => {
-    // 1. Eliminar los tokens de autenticación del localStorage.
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("username");
-    localStorage.removeItem("userRole");
-
-    // 2. Redirigir al usuario a la página de login.
-    // `replace: true` evita que el usuario pueda volver al panel con el botón "atrás".
-    navigate("/login", { replace: true });
+  const handleLogout = async () => {
+    try {
+      console.log("🚪 Iniciando logout...");
+      await logout({ navigate });
+    } catch (error) {
+      console.error("❌ Error durante el logout:", error);
+      // Fallback: redirigir al login incluso si hay error
+      navigate("/login", { replace: true });
+    }
   };
 
   const handleShowProfile = () => {

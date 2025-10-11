@@ -2,7 +2,86 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../components/button.jsx";
 
-const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew }) => {
+const EstadoSelector = ({ orden, onEstadoChange }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempEstado, setTempEstado] = useState(orden.estado);
+
+  const estadosDisponibles = [
+    "Pendiente",
+    "En proceso", 
+    "Finalizado",
+    "Entregado",
+    "Cancelado"
+  ];
+
+  const getEstadoColor = (estado) => {
+    switch (estado) {
+      case "Pendiente": return "bg-red-100 text-red-800 border-red-200";
+      case "En proceso": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "Finalizado": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "Entregado": return "bg-green-100 text-green-800 border-green-200";
+      case "Cancelado": return "bg-gray-100 text-gray-800 border-gray-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const handleSave = () => {
+    if (tempEstado !== orden.estado) {
+      onEstadoChange(orden.id, tempEstado);
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setTempEstado(orden.estado);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center space-x-2">
+        <select
+          value={tempEstado}
+          onChange={(e) => setTempEstado(e.target.value)}
+          className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {estadosDisponibles.map(estado => (
+            <option key={estado} value={estado}>{estado}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleSave}
+          className="text-green-600 hover:text-green-800 text-xs"
+          title="Guardar"
+        >
+          ✓
+        </button>
+        <button
+          onClick={handleCancel}
+          className="text-red-600 hover:text-red-800 text-xs"
+          title="Cancelar"
+        >
+          ✗
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <span 
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border cursor-pointer hover:opacity-80 ${getEstadoColor(orden.estado)}`}
+      onClick={() => setIsEditing(true)}
+      title="Clic para editar estado"
+    >
+      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+      </svg>
+      {orden.estado}
+    </span>
+  );
+};
+
+const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew, onEstadoChange }) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("list"); // list o grid
@@ -42,7 +121,10 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew }) => {
     switch (estado) {
       case "Pendiente": return "bg-red-100 text-red-800 border-red-200";
       case "En proceso": return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "Completado": return "bg-green-100 text-green-800 border-green-200";
+      case "Finalizado": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "Entregado": return "bg-green-100 text-green-800 border-green-200";
+      case "Cancelado": return "bg-gray-100 text-gray-800 border-gray-200";
+      case "Completado": return "bg-green-100 text-green-800 border-green-200"; // Para compatibilidad
       default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
@@ -137,7 +219,9 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew }) => {
               <option value="">Estado de orden</option>
               <option value="Pendiente">Pendiente</option>
               <option value="En proceso">En proceso</option>
-              <option value="Completado">Completado</option>
+              <option value="Finalizado">Finalizado</option>
+              <option value="Entregado">Entregado</option>
+              <option value="Cancelado">Cancelado</option>
             </select>
             
             <select
@@ -205,12 +289,10 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew }) => {
                   <td className="py-3 px-4 font-semibold">{orden.total}</td>
                   <td className="py-3 px-4">{orden.pago || "-"}</td>
                   <td className="py-3 px-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getEstadoColor(orden.estado)}`}>
-                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                      {orden.estado}
-                    </span>
+                    <EstadoSelector 
+                      orden={orden} 
+                      onEstadoChange={onEstadoChange}
+                    />
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex space-x-2">

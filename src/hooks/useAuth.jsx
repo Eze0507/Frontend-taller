@@ -72,5 +72,66 @@ export function useAuth() {
     }
   };
 
-  return { login, loading, error };
+  const logout = async ({ navigate } = {}) => {
+    setLoading(true);
+    try {
+      const refresh = localStorage.getItem("refresh");
+      const access = localStorage.getItem("access");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      
+      if (refresh && access) {
+        // Llamar al endpoint de logout del backend para invalidar el refresh token
+        const response = await axios.post(`${apiUrl}logout/`, {
+          refresh
+        }, {
+          headers: {
+            "Authorization": `Bearer ${access}`,
+          }
+        });
+
+        if (response.status === 200) {
+          console.log("✅ Logout exitoso:", response.data.message);
+        }
+      }
+    } catch (error) {
+      // Si falla la llamada al backend, continuar con el logout local
+      console.warn("❌ Error al comunicarse con el backend durante logout:", error);
+    } finally {
+      // Siempre limpiar el localStorage sin importar si el backend respondió
+      localStorage.removeItem("access");
+      localStorage.removeItem("refresh");
+      localStorage.removeItem("username");
+      localStorage.removeItem("userRole");
+      
+      console.log("🧹 Tokens eliminados del localStorage");
+      setLoading(false);
+      
+      // Redirigir al login si se proporciona la función navigate
+      if (navigate) {
+        navigate("/login", { replace: true });
+      }
+    }
+  };
+
+  // Función para verificar si el usuario está autenticado
+  const isAuthenticated = () => {
+    return !!localStorage.getItem("access");
+  };
+
+  // Función para obtener información del usuario
+  const getUserInfo = () => {
+    return {
+      username: localStorage.getItem("username") || "Usuario",
+      userRole: localStorage.getItem("userRole") || "Invitado",
+    };
+  };
+
+  return { 
+    login, 
+    logout, 
+    isAuthenticated, 
+    getUserInfo, 
+    loading, 
+    error 
+  };
 }
