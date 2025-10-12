@@ -19,6 +19,7 @@ import ItemVentaPage from "../pages/ItemVenta/ItemVentaPage.jsx";
 import ServicioPage from "../pages/Servicios/ServicioPage.jsx";
 import AreaPage from "../pages/area/areaPage.jsx";
 import VehiculoPage from "../pages/vehiculos/VehiculoPage.jsx";
+import BitacoraPage from "../pages/bitacora/BitacoraPage.jsx";
 
 const AdminRoutes = () => {
   const isAuthenticated = !!localStorage.getItem("access");
@@ -75,6 +76,8 @@ const AppRouter = () => {
           <Route path="/admin/operaciones/servicios" element={<ServicioPage />} />
           {/* Ruta para áreas */}
           <Route path="/admin/operaciones/area" element={<AreaPage />} />
+          {/* Ruta para bitácora */}
+          <Route path="/admin/bitacora" element={<BitacoraPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
