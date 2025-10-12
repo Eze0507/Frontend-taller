@@ -7,7 +7,8 @@ const BitacoraList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
-    search: ''
+    search: '',
+    ip_filter: ''
   });
   const [pagination, setPagination] = useState({
     count: 0,
@@ -75,7 +76,8 @@ const BitacoraList = () => {
   // Limpiar filtros
   const handleClearFilters = () => {
     setFilters({
-      search: ''
+      search: '',
+      ip_filter: ''
     });
     loadBitacora(1);
   };
@@ -133,6 +135,15 @@ const BitacoraList = () => {
       )
     },
     {
+      key: 'ip_address',
+      label: 'IP',
+      render: (value) => (
+        <div className="text-sm font-mono text-gray-600">
+          {value || '-'}
+        </div>
+      )
+    },
+    {
       key: 'accion',
       label: 'Acción',
       render: (value) => (
@@ -185,8 +196,11 @@ const BitacoraList = () => {
       {/* Búsqueda simple */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium mb-4">Buscar en bitácora</h3>
-        <div className="flex gap-4">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Buscar en descripción
+            </label>
             <input
               type="text"
               name="search"
@@ -196,6 +210,21 @@ const BitacoraList = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filtrar por IP
+            </label>
+            <input
+              type="text"
+              name="ip_filter"
+              value={filters.ip_filter}
+              onChange={handleFilterChange}
+              placeholder="Ej: 192.168.1.1"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            />
+          </div>
+        </div>
+        <div className="flex gap-4 mt-4">
           <Button onClick={handleApplyFilters} variant="primary">
             Buscar
           </Button>
