@@ -14,6 +14,18 @@ const Button = ({ type = "button", variant = "guardar", onClick, disabled = fals
       colorClasses = "bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:bg-gray-100";
       type = "button"; // siempre button
       break;
+    case "editar":
+      colorClasses = "bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 shadow-sm";
+      type = "button";
+      break;
+    case "eliminar":
+      colorClasses = "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-400 shadow-sm";
+      type = "button";
+      break;
+    case "ver":
+      colorClasses = "bg-green-600 text-white hover:bg-green-700 disabled:bg-green-400 shadow-sm";
+      type = "button";
+      break;
     default:
       colorClasses = "bg-gray-200 text-gray-800 hover:bg-gray-300";
   }

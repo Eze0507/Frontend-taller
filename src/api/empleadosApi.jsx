@@ -146,6 +146,19 @@ export async function fetchAllUsers() {
 }
 
 /* =========================
+   API: Áreas (para relación con empleados)
+   ========================= */
+export async function fetchAllAreas() {
+  try {
+    const response = await apiClient.get('/areas/');
+    // Soporta array directo o {results:[]}
+    return Array.isArray(response.data) ? response.data : (response.data?.results || []);
+  } catch (error) {
+    throw new Error('Error al obtener las áreas.');
+  }
+}
+
+/* =========================
    Utilidades de permisos
    ========================= */
 export function checkUserPermissions() {
@@ -179,6 +192,7 @@ export function checkUserPermissions() {
 export function toApiEmpleado(form) {
   const cargoId = typeof form.cargo === "object" ? form.cargo?.id : form.cargo;
   const usuarioId = typeof form.usuario === "object" ? form.usuario?.id : form.usuario;
+  const areaId = typeof form.area === "object" ? form.area?.id : form.area;
   
   const base = {
     nombre: form.nombre?.trim() || "",
@@ -194,6 +208,11 @@ export function toApiEmpleado(form) {
   const result = USE_CARGO_ID
     ? { ...base, cargo_id: Number(cargoId || 0) }
     : { ...base, cargo: Number(cargoId || 0) };
+  
+  // Añadir area_id si se proporciona (requerido)
+  if (areaId) {
+    result.area_id = Number(areaId);
+  }
   
   // Añadir usuario_id si se proporciona (opcional según el serializer)
   if (usuarioId) {

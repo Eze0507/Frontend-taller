@@ -21,6 +21,7 @@ import { useAuth } from '../hooks/useAuth.jsx';
 
 const Sidebar = ({ isVisible = true, onToggle }) => {
   const [openMenu, setOpenMenu] = useState(null);
+  const [openSubMenu, setOpenSubMenu] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation(); // Hook para detectar cambios de ruta
@@ -30,8 +31,14 @@ const Sidebar = ({ isVisible = true, onToggle }) => {
   // Usar el hook de autenticación
   const { logout } = useAuth();
 
+
   const toggleMenu = (menu) => {
     setOpenMenu(openMenu === menu ? null : menu);
+    setOpenSubMenu(null); // Cierra submenús al abrir otro menú principal
+  };
+
+  const toggleSubMenu = (subKey) => {
+    setOpenSubMenu(openSubMenu === subKey ? null : subKey);
   };
 
   const handleLogout = async () => {
@@ -106,9 +113,17 @@ const Sidebar = ({ isVisible = true, onToggle }) => {
         { name: "Presupuesto", path: "/presupuestos" },
         { name: "Orden de Trabajo", path: "/ordenes" },
         { name: "Vehículo", path: "/admin/operaciones/vehiculos" },
-        { name: "inventario", path: "/admin/operaciones/inventario" },
+        {
+          name: "inventario",
+          key: "inventario",
+          subItems: [
+            { name: "Item de Venta", path: "/admin/operaciones/inventario/venta" },
+            { name: "Item de Taller", path: "/admin/operaciones/inventario/taller" },
+          ],
+        },
         { name: "Servicios", path: "/admin/operaciones/servicios" },
         { name: "Proveedores", path: "/admin/operaciones/proveedores" },
+        { name: "Área", path: "/admin/operaciones/area" },
       ],
     },
     {
@@ -190,12 +205,45 @@ const Sidebar = ({ isVisible = true, onToggle }) => {
                     <ul className="ml-4">
                       {menu.subItems.map((sub, idx) => (
                         <li key={idx}>
-                          <Link
-                            to={sub.path}
-                            className="block p-2 hover:bg-gray-700"
-                          >
-                            {sub.name}
-                          </Link>
+                          {sub.subItems ? (
+                            <>
+                              <div
+                                className={`flex items-center justify-between block p-2 hover:bg-gray-700 cursor-pointer ${openSubMenu === sub.key ? 'bg-gray-700' : ''}`}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  toggleSubMenu(sub.key);
+                                }}
+                              >
+                                <span>{sub.name}</span>
+                                {openSubMenu === sub.key ? (
+                                  <FaChevronDown className="text-xs ml-2" />
+                                ) : (
+                                  <FaChevronRight className="text-xs ml-2" />
+                                )}
+                              </div>
+                              {openSubMenu === sub.key && (
+                                <ul className="ml-4">
+                                  {sub.subItems.map((ssub, sidx) => (
+                                    <li key={sidx}>
+                                      <Link
+                                        to={ssub.path}
+                                        className="block p-2 hover:bg-gray-700 text-white"
+                                      >
+                                        {ssub.name}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </>
+                          ) : (
+                            <Link
+                              to={sub.path}
+                              className="block p-2 hover:bg-gray-700"
+                            >
+                              {sub.name}
+                            </Link>
+                          )}
                         </li>
                       ))}
                     </ul>

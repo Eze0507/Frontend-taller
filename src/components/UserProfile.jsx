@@ -37,9 +37,47 @@ const UserProfile = ({ onClose }) => {
     setErrors({});
     try {
       const token = localStorage.getItem('access');
+      console.log('🔑 Token disponible:', !!token);
+      
+      // Usar la vista unificada del backend primero
+      console.log('👤 Intentando obtener perfil usando vista unificada...');
+      let response = await fetch('http://127.0.0.1:8000/api/profile/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('📊 Respuesta vista unificada status:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Perfil obtenido desde vista unificada:', result);
+        
+        const { type, data } = result;
+        setUserType(type);
+        setUserProfile(data);
+        setFormData({
+          nombre: data.nombre || '',
+          apellido: data.apellido || '',
+          direccion: data.direccion || '',
+          telefono: data.telefono || '',
+          username: data.usuario_info?.username || data.username || '',
+          email: data.usuario_info?.email || data.email || '',
+          ...(type === 'empleado' ? { ci: data.ci || '', sueldo: data.sueldo || '' } : { 
+            nit: data.nit || '', 
+            tipo_cliente: data.tipo_cliente || 'NATURAL' 
+          })
+        });
+        return; // Salir exitosamente
+      }
+      
+      // Si la vista unificada falla, usar el método anterior como fallback
+      console.log('ℹ️ Vista unificada falló, intentando método individual...');
       
       // Intentar obtener perfil de empleado primero
-      let response = await fetch('http://127.0.0.1:8000/api/empleado/profile/', {
+      console.log('👤 Intentando obtener perfil de empleado...');
+      response = await fetch('http://127.0.0.1:8000/api/empleado/profile/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -49,9 +87,13 @@ const UserProfile = ({ onClose }) => {
       let data;
       let type = 'empleado';
       
+      console.log('📊 Respuesta empleado status:', response.status);
+      
       if (response.ok) {
         data = await response.json();
+        console.log('✅ Perfil de empleado encontrado:', data);
       } else if (response.status === 404) {
+        console.log('ℹ️ No es empleado, intentando cliente...');
         // Si no es empleado, intentar cliente
         response = await fetch('http://127.0.0.1:8000/api/cliente/profile/', {
           headers: {
@@ -60,14 +102,21 @@ const UserProfile = ({ onClose }) => {
           },
         });
         
+        console.log('📊 Respuesta cliente status:', response.status);
+        
         if (response.ok) {
           data = await response.json();
           type = 'cliente';
+          console.log('✅ Perfil de cliente encontrado:', data);
         } else {
-          throw new Error('No se encontró perfil de usuario');
+          const errorData = await response.json();
+          console.error('❌ Error al obtener perfil de cliente:', errorData);
+          throw new Error(errorData.detail || 'No se encontró perfil de usuario');
         }
       } else {
-        throw new Error('Error al obtener el perfil');
+        const errorData = await response.json();
+        console.error('❌ Error al obtener perfil de empleado:', errorData);
+        throw new Error(errorData.detail || 'Error al obtener el perfil');
       }
 
       setUserType(type);
@@ -85,8 +134,8 @@ const UserProfile = ({ onClose }) => {
         })
       });
     } catch (error) {
-      console.error('Error fetching profile:', error);
-      setErrors({ general: 'Error al cargar el perfil del usuario' });
+      console.error('❌ Error general al cargar perfil:', error);
+      setErrors({ general: error.message || 'Error al cargar el perfil del usuario' });
     } finally {
       setLoading(false);
     }
@@ -147,16 +196,26 @@ const UserProfile = ({ onClose }) => {
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {
         const errorData = await response.json();
-        if (errorData.nombre) setErrors(prev => ({ ...prev, nombre: errorData.nombre[0] }));
-        if (errorData.apellido) setErrors(prev => ({ ...prev, apellido: errorData.apellido[0] }));
-        if (errorData.telefono) setErrors(prev => ({ ...prev, telefono: errorData.telefono[0] }));
-        if (errorData.email) setErrors(prev => ({ ...prev, email: errorData.email[0] }));
-        if (errorData.nit) setErrors(prev => ({ ...prev, nit: errorData.nit[0] }));
-        if (errorData.ci) setErrors(prev => ({ ...prev, ci: errorData.ci[0] }));
+        console.log('Error data:', errorData);
+        
+        // Manejar errores específicos del backend
+        if (errorData.error) {
+          setErrors({ general: errorData.error });
+        } else if (errorData.detail) {
+          setErrors({ general: errorData.detail });
+        } else {
+          // Manejar errores de validación de campos
+          if (errorData.nombre) setErrors(prev => ({ ...prev, nombre: Array.isArray(errorData.nombre) ? errorData.nombre[0] : errorData.nombre }));
+          if (errorData.apellido) setErrors(prev => ({ ...prev, apellido: Array.isArray(errorData.apellido) ? errorData.apellido[0] : errorData.apellido }));
+          if (errorData.telefono) setErrors(prev => ({ ...prev, telefono: Array.isArray(errorData.telefono) ? errorData.telefono[0] : errorData.telefono }));
+          if (errorData.email) setErrors(prev => ({ ...prev, email: Array.isArray(errorData.email) ? errorData.email[0] : errorData.email }));
+          if (errorData.nit) setErrors(prev => ({ ...prev, nit: Array.isArray(errorData.nit) ? errorData.nit[0] : errorData.nit }));
+          if (errorData.ci) setErrors(prev => ({ ...prev, ci: Array.isArray(errorData.ci) ? errorData.ci[0] : errorData.ci }));
+        }
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      setErrors({ general: 'Error al actualizar el perfil' });
+      setErrors({ general: 'Error al actualizar el perfil. Verifique su conexión.' });
     } finally {
       setLoading(false);
     }
