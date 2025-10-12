@@ -14,8 +14,12 @@ import OrdenPage from "../pages/ordenes/OrdenPage.jsx";
 import OrdenDetalle from "../pages/ordenes/OrdenDetalle.jsx";
 import PresupuestoPage from "../pages/presupuestos/PresupuestoPage.jsx";
 import PresupuestoDetalle from "../pages/presupuestos/PresupuestoDetalle.jsx";
-import BitacoraPage from "../pages/bitacora/BitacoraPage.jsx";
+import ItemTallerPage from "../pages/ItemTaller/ItemTallerPage.jsx";
+import ItemVentaPage from "../pages/ItemVenta/ItemVentaPage.jsx";
+import ServicioPage from "../pages/Servicios/ServicioPage.jsx";
+import AreaPage from "../pages/area/areaPage.jsx";
 import VehiculoPage from "../pages/vehiculos/VehiculoPage.jsx";
+import BitacoraPage from "../pages/bitacora/BitacoraPage.jsx";
 
 const AdminRoutes = () => {
   const isAuthenticated = !!localStorage.getItem("access");
@@ -60,11 +64,20 @@ const AppRouter = () => {
           <Route path="/admin/clientes" element={<ClientePage />} />
           <Route path="/admin/operaciones/vehiculos" element={<VehiculoPage />} />
           <Route path="/admin/roles" element={<RolePage />} />
-          <Route path="/admin/bitacora" element={<BitacoraPage />} />
           <Route path="/ordenes" element={<OrdenPage />} />
           <Route path="/ordenes/:id" element={<OrdenDetalle />} />
           <Route path="/presupuestos" element={<PresupuestoPage />} />
           <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
+          {/* Ruta para ítems de taller */}
+          <Route path="/admin/operaciones/inventario/taller" element={<ItemTallerPage />} />
+          {/* Ruta para ítems de venta */}
+          <Route path="/admin/operaciones/inventario/venta" element={<ItemVentaPage />} />
+          {/* Ruta para servicios */}
+          <Route path="/admin/operaciones/servicios" element={<ServicioPage />} />
+          {/* Ruta para áreas */}
+          <Route path="/admin/operaciones/area" element={<AreaPage />} />
+          {/* Ruta para bitácora */}
+          <Route path="/admin/bitacora" element={<BitacoraPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

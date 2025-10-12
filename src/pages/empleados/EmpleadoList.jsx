@@ -14,18 +14,21 @@ const EmpleadoList = ({ empleados, onEdit, onDelete, onAddNew }) => {
         e.cargo_nombre || (typeof e.cargo === "object" ? e.cargo?.nombre : "");
       const usuarioNombre =
         e.usuario_nombre || (typeof e.usuario === "object" ? e.usuario?.username : "");
+      const areaNombre =
+        e.area_nombre || (typeof e.area === "object" ? e.area?.nombre : "");
       return (
         (e.nombre && e.nombre.toLowerCase().includes(s)) ||
         (e.apellido && e.apellido.toLowerCase().includes(s)) ||
         (e.ci && String(e.ci).toLowerCase().includes(s)) ||
         (e.telefono && String(e.telefono).toLowerCase().includes(s)) ||
         (cargoNombre && cargoNombre.toLowerCase().includes(s)) ||
-        (usuarioNombre && usuarioNombre.toLowerCase().includes(s))
+        (usuarioNombre && usuarioNombre.toLowerCase().includes(s)) ||
+        (areaNombre && areaNombre.toLowerCase().includes(s))
       );
     });
   }, [searchTerm, empleados]);
 
-  const columns = ["nombre", "apellido", "ci", "telefono", "cargo", "usuario", "estado"];
+  const columns = ["nombre", "apellido", "ci", "telefono", "cargo", "area", "usuario", "estado"];
   const tableData = filtered.map((e) => {
     console.log('📊 Procesando empleado:', e);
     return {
@@ -40,10 +43,12 @@ const EmpleadoList = ({ empleados, onEdit, onDelete, onAddNew }) => {
       sueldo: e?.sueldo ?? 0,
       // Para mostrar en la tabla
       cargo: e?.cargo_nombre || (typeof e?.cargo === "object" ? e?.cargo?.nombre : e?.cargo) || "",
+      area: e?.area_nombre || (typeof e?.area === "object" ? e?.area?.nombre : e?.area) || "",
       usuario: e?.usuario_nombre || (typeof e?.usuario === "object" ? e?.usuario?.username : "") || "Sin usuario",
       estado: e?.estado === false ? "Inactivo" : "Activo", // Texto para mostrar
       // Para edición - mantener los objetos completos
       cargo_obj: e?.cargo || null,
+      area_obj: e?.area || null,
       usuario_obj: e?.usuario || null,
     };
   });
@@ -61,7 +66,7 @@ const EmpleadoList = ({ empleados, onEdit, onDelete, onAddNew }) => {
         <div className="flex justify-start flex-1 ml-8">
           <input
             type="text"
-            placeholder="Buscar por nombre, CI, teléfono, cargo, usuario..."
+            placeholder="Buscar por nombre, CI, teléfono, cargo, área, usuario..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="border rounded-md px-3 py-1 bg-white text-gray-700 w-80"

@@ -2,13 +2,13 @@ import React, { useEffect, useState } from "react";
 import StyledForm from "../../components/form";      // igual que en UserForm
 import Button from "../../components/button";        // igual que en UserForm
 
-const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios = [], loading }) => {
+const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios = [], areas = [], loading }) => {
   const [form, setForm] = useState({
     id: null,
     nombre: "", apellido: "", ci: "",
     direccion: "", telefono: "",
     sexo: "M", estado: true, sueldo: 0,
-    cargo: "", usuario: "",
+    cargo: "", usuario: "", area: "",
   });
 
   useEffect(() => {
@@ -34,6 +34,11 @@ const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios =
               (typeof initialData?.usuario === "object" && initialData?.usuario?.id) ||
               initialData?.usuario ||
               "",
+      // Manejo mejorado para área - priorizar area_obj si existe
+      area: initialData?.area_obj?.id || 
+            (typeof initialData?.area === "object" && initialData?.area?.id) ||
+            initialData?.area ||
+            "",
     });
     
     console.log('📝 Formulario inicializado con:', {
@@ -43,6 +48,7 @@ const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios =
       estado_boolean: Boolean(initialData?.estado),
       cargo: initialData?.cargo_obj?.id || initialData?.cargo,
       usuario: initialData?.usuario_obj?.id || initialData?.usuario,
+      area: initialData?.area_obj?.id || initialData?.area,
     });
   }, [initialData]);
 
@@ -164,6 +170,28 @@ const EmpleadoForm = ({ onSubmit, onCancel, initialData, cargos = [], usuarios =
           <option value="">Selecciona un cargo</option>
           {cargos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
+      </div>
+
+      {/* Área - Campo completo */}
+      <div>
+        <label className="block text-sm font-medium mb-1 text-gray-700">Área</label>
+        <select
+          name="area"
+          value={typeof form.area === "object" ? form.area?.id : (form.area || "")}
+          onChange={(e)=>{
+            const id = Number(e.target.value);
+            const found = areas.find(a => a.id === id);
+            setForm(f=>({ ...f, area: found || id }));
+          }}
+          required
+          className="w-full px-3 py-2 rounded-md bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">Selecciona un área</option>
+          {areas.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Selecciona el área donde trabajará este empleado
+        </p>
       </div>
 
       {/* Usuario (Opcional) - Campo completo */}

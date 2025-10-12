@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import EmpleadoList from "./EmpleadoList.jsx";
 import EmpleadoForm from "./EmpleadoForm.jsx";
 import {
-  fetchAllEmpleados, fetchAllCargos, fetchAllUsers,
+  fetchAllEmpleados, fetchAllCargos, fetchAllUsers, fetchAllAreas,
   createEmpleado, updateEmpleado, deleteEmpleado, toApiEmpleado,
   checkUserPermissions
 } from "../../api/empleadosApi.jsx";
@@ -11,6 +11,7 @@ const EmpleadoPage = () => {
   const [empleados, setEmpleados] = useState([]);
   const [cargos, setCargos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -52,10 +53,20 @@ const EmpleadoPage = () => {
     }
   }
 
+  async function loadAreas() {
+    try {
+      const data = await fetchAllAreas();
+      setAreas(data);
+    } catch (e) {
+      console.error(e.message);
+    }
+  }
+
   useEffect(() => {
     loadEmpleados();
     loadCargos();
     loadUsuarios();
+    loadAreas();
   }, []);
 
   const handleEdit = (row) => { 
@@ -127,13 +138,14 @@ const EmpleadoPage = () => {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          {console.log('📤 Pasando datos al formulario:', { editing, cargos: cargos.length, usuarios: usuarios.length })}
+          {console.log('📤 Pasando datos al formulario:', { editing, cargos: cargos.length, usuarios: usuarios.length, areas: areas.length })}
           <EmpleadoForm
             onSubmit={handleFormSubmit}
             onCancel={()=>{ setShowForm(false); setEditing(null); }}
             initialData={editing}
             cargos={cargos}
             usuarios={usuarios}
+            areas={areas}
             loading={loading}
           />
         </div>
