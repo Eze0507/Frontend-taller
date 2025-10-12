@@ -7,20 +7,38 @@ const EstadoSelector = ({ orden, onEstadoChange }) => {
   const [tempEstado, setTempEstado] = useState(orden.estado);
 
   const estadosDisponibles = [
-    "Pendiente",
-    "En proceso", 
-    "Finalizado",
-    "Entregado",
-    "Cancelado"
+    "pendiente",
+    "en_proceso",
+    "finalizada", 
+    "entregada",
+    "cancelada"
   ];
+
+  const getEstadoLabel = (estado) => {
+    const labels = {
+      "pendiente": "Pendiente",
+      "en_proceso": "En Proceso", 
+      "finalizada": "Finalizada",
+      "entregada": "Entregada",
+      "cancelada": "Cancelada"
+    };
+    return labels[estado] || estado;
+  };
 
   const getEstadoColor = (estado) => {
     switch (estado) {
+      case "pendiente": return "bg-red-100 text-red-800 border-red-200";
+      case "en_proceso": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "finalizada": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "entregada": return "bg-green-100 text-green-800 border-green-200";
+      case "cancelada": return "bg-gray-100 text-gray-800 border-gray-200";
+      // Para compatibilidad con estados anteriores
       case "Pendiente": return "bg-red-100 text-red-800 border-red-200";
       case "En proceso": return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "Finalizado": return "bg-blue-100 text-blue-800 border-blue-200";
       case "Entregado": return "bg-green-100 text-green-800 border-green-200";
       case "Cancelado": return "bg-gray-100 text-gray-800 border-gray-200";
+      case "Completado": return "bg-green-100 text-green-800 border-green-200";
       default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
@@ -46,7 +64,7 @@ const EstadoSelector = ({ orden, onEstadoChange }) => {
           className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {estadosDisponibles.map(estado => (
-            <option key={estado} value={estado}>{estado}</option>
+            <option key={estado} value={estado}>{getEstadoLabel(estado)}</option>
           ))}
         </select>
         <button
@@ -76,7 +94,7 @@ const EstadoSelector = ({ orden, onEstadoChange }) => {
       <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
       </svg>
-      {orden.estado}
+      {getEstadoLabel(orden.estado)}
     </span>
   );
 };
@@ -217,11 +235,11 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew, onEstadoChange }) => {
               className="bg-gray-600 text-white px-3 py-1 rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Estado de orden</option>
-              <option value="Pendiente">Pendiente</option>
-              <option value="En proceso">En proceso</option>
-              <option value="Finalizado">Finalizado</option>
-              <option value="Entregado">Entregado</option>
-              <option value="Cancelado">Cancelado</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="en_proceso">En Proceso</option>
+              <option value="finalizada">Finalizada</option>
+              <option value="entregada">Entregada</option>
+              <option value="cancelada">Cancelada</option>
             </select>
             
             <select

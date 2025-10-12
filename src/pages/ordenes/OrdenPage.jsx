@@ -2,7 +2,11 @@ import React, { useEffect, useState } from "react";
 import OrdenList from "./OrdenList.jsx";
 import {
   fetchAllOrdenes,
-  createOrden, updateOrden, deleteOrden, toApiOrden,
+  createOrden, 
+  updateOrden, 
+  updateOrdenEstado,
+  deleteOrden, 
+  toApiOrden,
   checkUserPermissions
 } from "../../api/ordenesApi.jsx";
 
@@ -94,26 +98,14 @@ const OrdenPage = () => {
     try {
       console.log(`🔄 Cambiando estado de orden ${ordenId} a: ${nuevoEstado}`);
       
-      // Encontrar la orden actual
-      const ordenActual = ordenes.find(orden => orden.id === ordenId);
-      if (!ordenActual) {
-        throw new Error('Orden no encontrada');
-      }
-
-      // Crear payload con el nuevo estado
-      const payload = {
-        ...ordenActual,
-        estado: nuevoEstado
-      };
-
-      // Hacer la llamada a la API
-      await updateOrden(ordenId, toApiOrden(payload));
+      // Usar la función específica para actualizar estado
+      await updateOrdenEstado(ordenId, nuevoEstado);
       
       // Actualizar el estado local
       setOrdenes(prevOrdenes => 
         prevOrdenes.map(orden => 
           orden.id === ordenId 
-            ? { ...orden, estado: nuevoEstado }
+            ? { ...orden, estado: nuevoEstado, estadoOrden: nuevoEstado }
             : orden
         )
       );

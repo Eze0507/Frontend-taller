@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchOrdenById, fetchVehiculoByOrden } from "../../api/ordenesApi.jsx";
+import { fetchOrdenById, fetchVehiculoByOrden, fetchItemsCatalogo, deleteDetalleOrden, updateOrdenDescripcion, addDetalleOrden, updateOrdenEstado } from "../../api/ordenesApi.jsx";
 
 const OrdenDetalle = () => {
   const { id } = useParams();
@@ -9,25 +9,288 @@ const OrdenDetalle = () => {
   const [vehiculo, setVehiculo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("vehiculo");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [itemsCatalogo, setItemsCatalogo] = useState([]);
+  const [tipoItem, setTipoItem] = useState("catalogo"); // "catalogo" o "personalizado"
+  const [descripcionLocal, setDescripcionLocal] = useState("");
+  const [guardandoDescripcion, setGuardandoDescripcion] = useState(false);
+  const [showEstadoDropdown, setShowEstadoDropdown] = useState(false);
+  const [newItem, setNewItem] = useState({
+    item_id: null,
+    item_personalizado: "",
+    cantidad: "",
+    precio_unitario: "",
+    descuento: ""
+  });
 
   useEffect(() => {
     loadOrdenData();
   }, [id]);
 
+  // useEffect para cerrar el dropdown al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showEstadoDropdown && !event.target.closest('.relative')) {
+        setShowEstadoDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEstadoDropdown]);
+
   const loadOrdenData = async () => {
     try {
       setLoading(true);
-      const [ordenData, vehiculoData] = await Promise.all([
+      const [ordenData, vehiculoData, itemsData] = await Promise.all([
         fetchOrdenById(id),
-        fetchVehiculoByOrden(id)
+        fetchVehiculoByOrden(id),
+        fetchItemsCatalogo()
       ]);
       setOrden(ordenData);
       setVehiculo(vehiculoData);
+      setItemsCatalogo(itemsData);
+      setDescripcionLocal(ordenData.falloRequerimiento || ordenData.descripcion || "");
     } catch (error) {
       console.error("Error cargando datos:", error);
     } finally {
       setLoading(false);
     }
+  };  const handleAddItem = () => {
+    setShowAddForm(true);
+  };
+
+  const handleSaveItem = async () => {
+    // Validar según el tipo de item
+    if (tipoItem === "catalogo" && !newItem.item_id) {
+      alert("Por favor seleccione un item del catálogo");
+      return;
+    }
+    
+    if (tipoItem === "personalizado" && !newItem.item_personalizado.trim()) {
+      alert("Por favor ingrese el nombre del item personalizado");
+      return;
+    }
+
+    try {
+      // Convertir valores a números para el cálculo
+      const precio = parseFloat(newItem.precio_unitario || 0);
+      const cantidad = parseInt(newItem.cantidad || 1); // Usar 1 como default si está vacío
+      const descuento = parseFloat(newItem.descuento || 0);
+      
+      // Preparar el detalle para enviar al backend
+      const detalleParaBackend = {
+        orden_trabajo: orden.id,
+        cantidad: cantidad,
+        precio_unitario: precio,
+        descuento: descuento,
+        // Enviar el item del catálogo O el item personalizado, pero no ambos
+        ...(tipoItem === "catalogo" 
+          ? { item: newItem.item_id, item_personalizado: null }
+          : { item: null, item_personalizado: newItem.item_personalizado }
+        )
+      };
+
+      console.log('Guardando detalle en backend:', detalleParaBackend);
+
+      // Guardar en el backend
+      const detalleGuardado = await addDetalleOrden(orden.id, detalleParaBackend);
+      
+      // Obtener el nombre del item para mostrar en el frontend
+      let nombre_item = "";
+      if (tipoItem === "catalogo" && newItem.item_id) {
+        const itemSeleccionado = itemsCatalogo.find(item => item.id === parseInt(newItem.item_id));
+        nombre_item = itemSeleccionado?.nombre || "Item del catálogo";
+      } else {
+        nombre_item = newItem.item_personalizado;
+      }
+
+      // Preparar el item para el estado local (con datos del backend + nombre para mostrar)
+      const itemParaEstado = {
+        ...detalleGuardado,
+        nombre_item: nombre_item
+      };
+
+      // Agregar el nuevo item al estado local
+      setOrden(prevOrden => ({
+        ...prevOrden,
+        detalles: [...(prevOrden.detalles || []), itemParaEstado]
+      }));
+
+      // Resetear formulario
+      setNewItem({
+        item_id: null,
+        item_personalizado: "",
+        cantidad: "",
+        precio_unitario: "",
+        descuento: ""
+      });
+      setTipoItem("catalogo");
+      setShowAddForm(false);
+
+      console.log('Detalle guardado exitosamente');
+      
+    } catch (error) {
+      console.error('Error guardando detalle:', error);
+      alert('Error al guardar el detalle. Por favor, intenta de nuevo.');
+    }
+  };
+
+  const handleCancelAdd = () => {
+    setNewItem({
+      item_id: null,
+      item_personalizado: "",
+      cantidad: "",
+      precio_unitario: "",
+      descuento: ""
+    });
+    setTipoItem("catalogo");
+    setShowAddForm(false);
+  };
+
+  const handleInputChange = (field, value) => {
+    setNewItem(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Función para manejar cambios en la descripción
+  const handleDescripcionChange = (e) => {
+    const nuevaDescripcion = e.target.value;
+    setDescripcionLocal(nuevaDescripcion);
+  };
+
+  // Función para manejar cambio de estado
+  const handleEstadoChange = async (nuevoEstado) => {
+    try {
+      console.log('Cambiando estado a:', nuevoEstado);
+      const ordenActualizada = await updateOrdenEstado(orden.id, nuevoEstado);
+      
+      // Actualizar el estado local
+      setOrden(prevOrden => ({
+        ...prevOrden,
+        estado: nuevoEstado
+      }));
+      
+      setShowEstadoDropdown(false);
+      console.log('Estado actualizado exitosamente');
+    } catch (error) {
+      console.error('Error actualizando estado:', error);
+      alert('Error al actualizar el estado. Por favor, intenta de nuevo.');
+    }
+  };
+
+  // Estados disponibles para la orden
+  const estadosDisponibles = [
+    { value: 'pendiente', label: 'Pendiente', color: 'bg-red-600 hover:bg-red-700' },
+    { value: 'en_proceso', label: 'En Proceso', color: 'bg-yellow-600 hover:bg-yellow-700' },
+    { value: 'finalizada', label: 'Finalizada', color: 'bg-blue-600 hover:bg-blue-700' },
+    { value: 'entregada', label: 'Entregada', color: 'bg-green-600 hover:bg-green-700' },
+    { value: 'cancelada', label: 'Cancelada', color: 'bg-gray-600 hover:bg-gray-700' }
+  ];
+
+  // Obtener el estado actual
+  const estadoActual = estadosDisponibles.find(estado => estado.value === orden?.estado) || estadosDisponibles[0];
+
+  // useEffect para auto-guardar la descripción con debounce
+  useEffect(() => {
+    if (!orden || !orden.id) return;
+
+    const timeoutId = setTimeout(async () => {
+      const descripcionOriginal = orden.falloRequerimiento || orden.descripcion || "";
+      
+      // Solo guardar si la descripción ha cambiado
+      if (descripcionLocal !== descripcionOriginal) {
+        try {
+          setGuardandoDescripcion(true);
+          await updateOrdenDescripcion(orden.id, descripcionLocal);
+          
+          // Actualizar el estado local de la orden
+          setOrden(prevOrden => ({
+            ...prevOrden,
+            descripcion: descripcionLocal,
+            falloRequerimiento: descripcionLocal
+          }));
+        } catch (error) {
+          console.error('Error guardando descripción:', error);
+        } finally {
+          setGuardandoDescripcion(false);
+        }
+      }
+    }, 1500); // Esperar 1.5 segundos después de que el usuario deje de escribir
+
+    return () => clearTimeout(timeoutId);
+  }, [descripcionLocal, orden]);
+
+  const handleDeleteItem = async (index) => {
+    try {
+      console.log('Eliminando item en índice:', index);
+      const detalleAEliminar = orden.detalles[index];
+      
+      // Si el detalle tiene ID, eliminarlo de la base de datos
+      if (detalleAEliminar.id) {
+        await deleteDetalleOrden(orden.id, detalleAEliminar.id);
+        console.log('Detalle eliminado de la base de datos');
+      }
+      
+      // Actualizar el estado local
+      setOrden(prevOrden => ({
+        ...prevOrden,
+        detalles: prevOrden.detalles.filter((_, i) => i !== index)
+      }));
+      
+      console.log('Detalle eliminado del estado local');
+    } catch (error) {
+      console.error('Error eliminando detalle:', error);
+      alert('Error al eliminar el detalle. Por favor, intenta de nuevo.');
+    }
+  };
+
+  const handleItemCatalogoChange = (itemId) => {
+    const itemSeleccionado = itemsCatalogo.find(item => item.id === parseInt(itemId));
+    if (itemSeleccionado) {
+      const precio = parseFloat(itemSeleccionado.precio || 0);
+      setNewItem(prev => ({
+        ...prev,
+        item_id: itemId,
+        precio_unitario: precio
+      }));
+    }
+  };
+
+  // Función para calcular totales dinámicamente
+  const calculateTotals = () => {
+    if (!orden?.detalles || orden.detalles.length === 0) {
+      return {
+        subtotal: 0,
+        descuentoTotal: 0,
+        iva: 0,
+        total: 0
+      };
+    }
+
+    const subtotal = orden.detalles.reduce((sum, detalle) => {
+      const itemTotal = (parseFloat(detalle.precio_unitario || 0) * parseInt(detalle.cantidad || 0));
+      return sum + itemTotal;
+    }, 0);
+
+    const descuentoTotal = orden.detalles.reduce((sum, detalle) => {
+      return sum + parseFloat(detalle.descuento || 0);
+    }, 0);
+
+    const subtotalConDescuento = subtotal - descuentoTotal;
+    const iva = subtotalConDescuento * 0.13; // 13% IVA
+    const total = subtotalConDescuento + iva;
+
+    return {
+      subtotal: subtotal,
+      descuentoTotal: descuentoTotal,
+      iva: iva,
+      total: total
+    };
   };
 
   if (loading) {
@@ -120,9 +383,41 @@ const OrdenDetalle = () => {
                 </svg>
               </button>
               <div className="w-1 h-6 bg-gray-600"></div>
-              <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium">
-                Pendiente
-              </button>
+              
+              {/* Dropdown de estado */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowEstadoDropdown(!showEstadoDropdown)}
+                  className={`px-4 py-2 rounded text-sm font-medium ${estadoActual.color} text-white flex items-center space-x-2`}
+                >
+                  <span>{estadoActual.label}</span>
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showEstadoDropdown && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+                    {estadosDisponibles.map((estado) => (
+                      <button
+                        key={estado.value}
+                        onClick={() => handleEstadoChange(estado.value)}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2 ${
+                          estado.value === orden?.estado ? 'bg-gray-50 font-medium' : ''
+                        }`}
+                      >
+                        <div className={`w-3 h-3 rounded-full ${estado.color.split(' ')[0]}`}></div>
+                        <span className="text-gray-800">{estado.label}</span>
+                        {estado.value === orden?.estado && (
+                          <svg className="w-4 h-4 ml-auto text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">
                 Ingresar pago
               </button>
@@ -135,105 +430,255 @@ const OrdenDetalle = () => {
         {/* Contenido principal */}
         <div className="flex-1 p-6 overflow-y-auto">
           {/* Información del cliente */}
-          <div className="mb-6">
-            <div className="flex items-center space-x-2 mb-2">
-              <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-              </svg>
-              <span className="font-semibold text-lg">{orden.cliente}</span>
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">INFORMACIÓN DEL CLIENTE</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-semibold text-lg">{orden.cliente}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                  </svg>
+                  <span className="text-gray-600">{orden.clienteTelefono || "+59189456789"}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-              </svg>
-              <span className="text-gray-600">+59189456789</span>
-              <button className="p-1 hover:bg-gray-100 rounded">
-                <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
+            
+            {/* Fechas importantes */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Creación:</span>
+                  <div className="font-medium">{new Date(orden.fechaCreacion).toLocaleDateString()}</div>
+                </div>
+                {orden.fechaInicio && (
+                  <div>
+                    <span className="text-gray-500">Inicio:</span>
+                    <div className="font-medium">{new Date(orden.fechaInicio).toLocaleDateString()}</div>
+                  </div>
+                )}
+                {orden.fechaFinalizacion && (
+                  <div>
+                    <span className="text-gray-500">Finalización:</span>
+                    <div className="font-medium">{new Date(orden.fechaFinalizacion).toLocaleDateString()}</div>
+                  </div>
+                )}
+                {orden.fechaEntrega && (
+                  <div>
+                    <span className="text-gray-500">Entrega:</span>
+                    <div className="font-medium">{new Date(orden.fechaEntrega).toLocaleDateString()}</div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Falla o requerimiento */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">FALLA O REQUERIMIENTO</h3>
-            <div className="flex space-x-2 mb-3">
-              <input
-                type="text"
+            <h3 className="text-lg font-semibold mb-3 text-gray-800 flex items-center">
+              FALLA O REQUERIMIENTO
+              {guardandoDescripcion && (
+                <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                  Guardando...
+                </span>
+              )}
+            </h3>
+            <div className="mb-3">
+              <textarea
                 placeholder="Agrega una descripción"
-                defaultValue={orden.descripcion}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={descripcionLocal}
+                onChange={handleDescripcionChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                rows="3"
               />
-              <button className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex space-x-4">
-              <label className="flex items-center">
-                <input type="radio" name="tipo" value="reparacion" defaultChecked className="mr-2" />
-                Reparación
-              </label>
-              <label className="flex items-center">
-                <input type="radio" name="tipo" value="mantencion" className="mr-2" />
-                Mantención
-              </label>
-              <label className="flex items-center">
-                <input type="radio" name="tipo" value="garantia" className="mr-2" />
-                Garantía
-              </label>
             </div>
           </div>
 
           {/* Producto o servicio */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">PRODUCTO O SERVICIO</h3>
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">PRODUCTOS Y SERVICIOS</h3>
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                <div className="grid grid-cols-4 gap-4 text-sm font-medium text-gray-600">
+                <div className="grid gap-4 text-sm font-medium text-gray-600" style={{gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto"}}>
+                  <div>ITEM</div>
                   <div>CANTIDAD</div>
                   <div>PRECIO</div>
                   <div>DESC</div>
                   <div>TOTAL</div>
+                  <div></div>
                 </div>
               </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">aceite</div>
+              
+              {/* Mostrar detalles reales de la orden */}
+              {orden.detalles && orden.detalles.length > 0 ? (
+                orden.detalles.map((detalle, index) => (
+                  <div key={index} className="p-4 border-b border-gray-100 last:border-b-0">
+                    <div className="grid gap-4 items-center" style={{gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto"}}>
+                      <div className="text-sm font-medium">
+                        {detalle.nombre_item || detalle.item_personalizado || "Item sin nombre"}
+                      </div>
+                      <div className="text-sm">{detalle.cantidad}</div>
+                      <div className="text-sm">Bs {parseFloat(detalle.precio_unitario).toFixed(2)}</div>
+                      <div className="text-sm">
+                        {detalle.descuento > 0 ? `Bs ${parseFloat(detalle.descuento).toFixed(2)}` : '-'}
+                      </div>
+                      <div className="text-sm font-semibold">Bs{parseFloat(detalle.total).toFixed(2)}</div>
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => handleDeleteItem(index)}
+                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                          title="Eliminar item"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm">1</span>
-                    <span className="text-sm">Bs 80,00</span>
-                    <span className="text-sm">-</span>
-                    <span className="text-sm font-semibold">Bs80</span>
-                    <div className="flex space-x-2">
-                      <button className="p-1 hover:bg-gray-100 rounded">
-                        <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                        </svg>
+                ))
+              ) : (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="mb-2">No hay productos o servicios agregados</div>
+                  <div className="text-sm">Haz clic en "Agregar nuevo producto o servicio" para empezar</div>
+                </div>
+              )}
+
+              {/* Formulario para agregar nuevo item */}
+              {showAddForm && (
+                <div className="p-4 border-b border-gray-200 bg-blue-50">
+                  {/* Selector de tipo de item */}
+                  <div className="mb-3">
+                    <div className="flex space-x-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="tipoItem"
+                          value="catalogo"
+                          checked={tipoItem === "catalogo"}
+                          onChange={(e) => setTipoItem(e.target.value)}
+                          className="mr-2"
+                        />
+                        Item del catálogo
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="tipoItem"
+                          value="personalizado"
+                          checked={tipoItem === "personalizado"}
+                          onChange={(e) => setTipoItem(e.target.value)}
+                          className="mr-2"
+                        />
+                        Item personalizado
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 items-center" style={{gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto"}}>
+                    <div>
+                      {tipoItem === "catalogo" ? (
+                        <select
+                          value={newItem.item_id || ""}
+                          onChange={(e) => handleItemCatalogoChange(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Seleccionar item...</option>
+                          {itemsCatalogo.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.nombre} - Bs {parseFloat(item.precio || 0).toFixed(2)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Nombre del item personalizado"
+                          value={newItem.item_personalizado}
+                          onChange={(e) => handleInputChange('item_personalizado', e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="1"
+                        value={newItem.cantidad || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleInputChange('cantidad', value === "" ? "" : parseInt(value) || "");
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={newItem.precio_unitario || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleInputChange('precio_unitario', value === "" ? 0 : parseFloat(value));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={newItem.descuento || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleInputChange('descuento', value === "" ? 0 : parseFloat(value));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div className="text-sm font-medium text-blue-600">
+                      Bs {((parseFloat(newItem.precio_unitario) || 0) * (parseInt(newItem.cantidad) || 1) - (parseFloat(newItem.descuento) || 0)).toFixed(2)}
+                    </div>
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={handleSaveItem}
+                        className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-medium"
+                      >
+                        ✓
                       </button>
-                      <button className="p-1 hover:bg-gray-100 rounded">
-                        <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                      <button className="p-1 hover:bg-gray-100 rounded">
-                        <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
+                      <button
+                        onClick={handleCancelAdd}
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-medium"
+                      >
+                        ✕
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="mt-3">
-              <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-800">
+              <button 
+                onClick={handleAddItem}
+                disabled={showAddForm}
+                className={`flex items-center space-x-2 ${
+                  showAddForm 
+                    ? 'text-gray-400 cursor-not-allowed' 
+                    : 'text-blue-600 hover:text-blue-800'
+                }`}
+              >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
                 <span>Agregar nuevo producto o servicio</span>
               </button>
@@ -244,26 +689,27 @@ const OrdenDetalle = () => {
           <div className="flex justify-end space-x-4">
             <div className="text-right">
               <div className="text-sm text-gray-600 mb-1">DESCUENTO</div>
-              <div className="bg-gray-100 px-3 py-2 rounded-md text-sm">-</div>
+              <div className="bg-gray-100 px-3 py-2 rounded-md text-sm">
+                Bs {calculateTotals().descuentoTotal.toFixed(2)}
+              </div>
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-600 mb-1">SUBTOTAL</div>
-              <div className="bg-gray-100 px-3 py-2 rounded-md text-sm font-semibold">Bs80</div>
+              <div className="bg-gray-100 px-3 py-2 rounded-md text-sm font-semibold">
+                Bs {calculateTotals().subtotal.toFixed(2)}
+              </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-600 mb-1">IVA</div>
-              <div className="bg-gray-100 px-3 py-2 rounded-md text-sm flex items-center">
-                <span>Bs10</span>
-                <button className="ml-2 text-red-500 hover:text-red-700">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
+              <div className="text-sm text-gray-600 mb-1">IMPUESTO (13%)</div>
+              <div className="bg-gray-100 px-3 py-2 rounded-md text-sm">
+                Bs {calculateTotals().iva.toFixed(2)}
               </div>
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-600 mb-1">TOTAL</div>
-              <div className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-semibold">Bs90</div>
+              <div className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-semibold">
+                Bs {calculateTotals().total.toFixed(2)}
+              </div>
             </div>
           </div>
         </div>

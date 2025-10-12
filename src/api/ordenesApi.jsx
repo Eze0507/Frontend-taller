@@ -1,129 +1,272 @@
 // API para gestión de órdenes de trabajo
-const API_BASE_URL = 'http://localhost:8000/api';
+import axios from 'axios';
 
-// Datos de ejemplo para el prototipo
-const ordenesEjemplo = [
-  {
-    id: 1,
-    numero: "#1",
-    fecha: "3 Oct",
-    cliente: "Carlos Carlos",
-    marcaModelo: "Toyota 4runner 2019",
-    total: "Bs90",
-    pago: "",
-    estado: "Pendiente",
-    tipoOrden: "Reparación",
-    estadoOrden: "En proceso",
-    asignadoA: "Juan Pérez",
-    prioridad: "Media",
-    estadoPago: "Pendiente",
-    descripcion: "Cambio de aceite",
-    kilometraje: "45000",
-    nivelCombustible: "3/4",
-    estadoVehiculo: "Buen estado general",
-    inventario: {
-      antenas: true,
-      botiquin: true,
-      documentos: true,
-      encendedor: false,
-      extintor: true,
-      gata: true,
-      herramientas: true,
-      llave1: true,
-      llave2: false,
-      llaveRueda: true,
-      pisos: true,
-      ruedaRepuesto: true,
-      tag: true,
-      tapasRuedas: true,
-      triangulos: true
+// URL base de tu API
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+// Configurar axios con interceptores para autenticación
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Interceptor para agregar token de autorización
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-];
+);
 
-const vehiculosEjemplo = [
-  {
-    id: 1,
-    marca: "Toyota",
-    modelo: "4runner",
-    año: "2019",
-    color: "blanco",
-    placa: "JEJE201",
-    logo: "Toyota"
+// Interceptor para manejar errores de respuesta
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expirado, redirigir al login
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
   }
-];
+);
 
-// Funciones de la API (simuladas para el prototipo)
+// Función para transformar datos del backend a formato del frontend
+const transformOrdenFromAPI = (orden) => {
+  return {
+    id: orden.id,
+    numero: `#${orden.id}`,
+    fecha: new Date(orden.fecha_creacion).toLocaleDateString('es-ES', { 
+      day: 'numeric', 
+      month: 'short' 
+    }),
+    cliente: orden.cliente_nombre,
+    clienteTelefono: orden.cliente_telefono,
+    marcaModelo: `${orden.vehiculo_marca} ${orden.vehiculo_modelo}`,
+    vehiculo_placa: orden.vehiculo_placa,
+    total: `Bs${orden.total}`,
+    estado: orden.estado,
+    fechaCreacion: orden.fecha_creacion,
+    fechaInicio: orden.fecha_inicio,
+    fechaFinalizacion: orden.fecha_finalizacion,
+    fechaEntrega: orden.fecha_entrega,
+    kilometraje: orden.kilometraje,
+    nivelCombustible: orden.nivel_combustible,
+    observaciones: orden.observaciones,
+    falloRequerimiento: orden.fallo_requerimiento,
+    subtotal: orden.subtotal,
+    impuesto: orden.impuesto,
+    descuento: orden.descuento,
+    vehiculo: orden.vehiculo,
+    clienteId: orden.cliente,
+    detalles: orden.detalles || [],
+    // Campos adicionales para compatibilidad con el frontend existente
+    tipoOrden: "Reparación", // Puedes mapear esto si tienes el campo en el modelo
+    estadoOrden: orden.estado,
+    asignadoA: "", // Agregar si tienes este campo
+    prioridad: "Media", // Agregar si tienes este campo
+    estadoPago: "Pendiente", // Agregar si tienes este campo
+    pago: ""
+  };
+};
+
+// Función para transformar datos del frontend al formato de la API
+const transformOrdenToAPI = (ordenData) => {
+  return {
+    fallo_requerimiento: ordenData.falloRequerimiento || ordenData.descripcion,
+    estado: ordenData.estado,
+    fecha_inicio: ordenData.fechaInicio,
+    fecha_finalizacion: ordenData.fechaFinalizacion,
+    fecha_entrega: ordenData.fechaEntrega,
+    kilometraje: parseInt(ordenData.kilometraje),
+    nivel_combustible: parseInt(ordenData.nivelCombustible),
+    observaciones: ordenData.observaciones,
+    vehiculo: ordenData.vehiculo,
+    cliente: ordenData.clienteId || ordenData.cliente,
+    detalles: ordenData.detalles || []
+  };
+};
+
+// Funciones de la API
 export const fetchAllOrdenes = async () => {
-  // Simular delay de API
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return ordenesEjemplo;
+  try {
+    console.log('🔄 Obteniendo todas las órdenes...');
+    const response = await apiClient.get('/ordenes/');
+    console.log('📋 Órdenes recibidas del backend:', response.data);
+    
+    // Transformar datos del backend al formato esperado por el frontend
+    const ordenesTransformadas = response.data.map(transformOrdenFromAPI);
+    console.log('✅ Órdenes transformadas:', ordenesTransformadas);
+    
+    return ordenesTransformadas;
+  } catch (error) {
+    console.error('❌ Error al obtener órdenes:', error);
+    throw new Error(`Error al cargar órdenes: ${error.response?.data?.detail || error.message}`);
+  }
 };
 
 export const fetchOrdenById = async (id) => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return ordenesEjemplo.find(orden => orden.id === parseInt(id)) || null;
-};
-
-export const fetchVehiculoByOrden = async (ordenId) => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return vehiculosEjemplo[0]; // Por ahora siempre retorna el mismo vehículo
+  try {
+    console.log(`🔄 Obteniendo orden ${id}...`);
+    const response = await apiClient.get(`/ordenes/${id}/`);
+    console.log('📋 Orden recibida:', response.data);
+    
+    return transformOrdenFromAPI(response.data);
+  } catch (error) {
+    console.error(`❌ Error al obtener orden ${id}:`, error);
+    throw new Error(`Error al cargar orden: ${error.response?.data?.detail || error.message}`);
+  }
 };
 
 export const createOrden = async (ordenData) => {
-  await new Promise(resolve => setTimeout(resolve, 800));
-  const nuevaOrden = {
-    id: ordenesEjemplo.length + 1,
-    numero: `#${ordenesEjemplo.length + 1}`,
-    ...ordenData,
-    fecha: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
-    estado: "Pendiente"
-  };
-  ordenesEjemplo.push(nuevaOrden);
-  return nuevaOrden;
+  try {
+    console.log('🔄 Creando nueva orden...', ordenData);
+    const payload = transformOrdenToAPI(ordenData);
+    console.log('📤 Payload enviado:', payload);
+    
+    const response = await apiClient.post('/ordenes/', payload);
+    console.log('✅ Orden creada:', response.data);
+    
+    return transformOrdenFromAPI(response.data);
+  } catch (error) {
+    console.error('❌ Error al crear orden:', error);
+    throw new Error(`Error al crear orden: ${error.response?.data?.detail || error.message}`);
+  }
 };
 
 export const updateOrden = async (id, ordenData) => {
-  await new Promise(resolve => setTimeout(resolve, 600));
-  const index = ordenesEjemplo.findIndex(orden => orden.id === parseInt(id));
-  if (index !== -1) {
-    ordenesEjemplo[index] = { ...ordenesEjemplo[index], ...ordenData };
-    return ordenesEjemplo[index];
+  try {
+    console.log(`🔄 Actualizando orden ${id}...`, ordenData);
+    const payload = transformOrdenToAPI(ordenData);
+    console.log('📤 Payload enviado:', payload);
+    
+    const response = await apiClient.put(`/ordenes/${id}/`, payload);
+    console.log('✅ Orden actualizada:', response.data);
+    
+    return transformOrdenFromAPI(response.data);
+  } catch (error) {
+    console.error(`❌ Error al actualizar orden ${id}:`, error);
+    throw new Error(`Error al actualizar orden: ${error.response?.data?.detail || error.message}`);
   }
-  throw new Error('Orden no encontrada');
+};
+
+export const updateOrdenEstado = async (id, nuevoEstado) => {
+  try {
+    console.log(`🔄 Actualizando estado de orden ${id} a ${nuevoEstado}...`);
+    
+    // Obtener la orden actual primero
+    const ordenActual = await fetchOrdenById(id);
+    
+    // Actualizar solo el estado
+    const payload = {
+      ...transformOrdenToAPI(ordenActual),
+      estado: nuevoEstado
+    };
+    
+    const response = await apiClient.patch(`/ordenes/${id}/`, { estado: nuevoEstado });
+    console.log('✅ Estado de orden actualizado:', response.data);
+    
+    return transformOrdenFromAPI(response.data);
+  } catch (error) {
+    console.error(`❌ Error al actualizar estado de orden ${id}:`, error);
+    throw new Error(`Error al actualizar estado: ${error.response?.data?.detail || error.message}`);
+  }
 };
 
 export const deleteOrden = async (id) => {
-  await new Promise(resolve => setTimeout(resolve, 400));
-  const index = ordenesEjemplo.findIndex(orden => orden.id === parseInt(id));
-  if (index !== -1) {
-    ordenesEjemplo.splice(index, 1);
+  try {
+    console.log(`🔄 Eliminando orden ${id}...`);
+    await apiClient.delete(`/ordenes/${id}/`);
+    console.log('✅ Orden eliminada exitosamente');
     return true;
+  } catch (error) {
+    console.error(`❌ Error al eliminar orden ${id}:`, error);
+    throw new Error(`Error al eliminar orden: ${error.response?.data?.detail || error.message}`);
   }
-  throw new Error('Orden no encontrada');
 };
 
-// Funciones auxiliares
+// Funciones auxiliares para mantener compatibilidad
 export const toApiOrden = (formData) => {
-  return {
-    cliente: formData.cliente,
-    marcaModelo: formData.marcaModelo,
-    descripcion: formData.descripcion,
-    tipoOrden: formData.tipoOrden,
-    total: formData.total,
-    kilometraje: formData.kilometraje,
-    nivelCombustible: formData.nivelCombustible,
-    estadoVehiculo: formData.estadoVehiculo,
-    inventario: formData.inventario
-  };
+  return transformOrdenToAPI(formData);
 };
 
 export const checkUserPermissions = () => {
-  // Simular permisos de usuario
+  // Por ahora retornar permisos completos, luego puedes implementar lógica basada en roles
   return {
     canCreate: true,
     canEdit: true,
     canDelete: true,
     canView: true
   };
+};
+
+// Función para obtener vehículo por orden (si necesitas esta funcionalidad)
+export const fetchVehiculoByOrden = async (ordenId) => {
+  try {
+    const orden = await fetchOrdenById(ordenId);
+    return {
+      id: orden.vehiculo,
+      placa: orden.vehiculo_placa,
+      marca: orden.marcaModelo.split(' ')[0],
+      modelo: orden.marcaModelo.split(' ').slice(1).join(' ')
+    };
+  } catch (error) {
+    console.error(`❌ Error al obtener vehículo de orden ${ordenId}:`, error);
+    throw error;
+  }
+};
+
+// Función para obtener items disponibles del catálogo
+export const fetchItemsCatalogo = async () => {
+  try {
+    const response = await apiClient.get('/items/');
+    return response.data;
+  } catch (error) {
+    console.error('Error obteniendo items del catálogo:', error);
+    throw error;
+  }
+};
+
+// Función para eliminar un detalle de una orden
+export const deleteDetalleOrden = async (ordenId, detalleId) => {
+  try {
+    const response = await apiClient.delete(`/ordenes/${ordenId}/detalles/${detalleId}/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error eliminando detalle de orden:', error);
+    throw error;
+  }
+};
+
+// Función para actualizar la descripción/falla de una orden
+export const updateOrdenDescripcion = async (ordenId, descripcion) => {
+  try {
+    const response = await apiClient.patch(`/ordenes/${ordenId}/`, {
+      descripcion: descripcion
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error actualizando descripción de orden:', error);
+    throw error;
+  }
+};
+
+// Función para agregar un nuevo detalle a una orden
+export const addDetalleOrden = async (ordenId, detalle) => {
+  try {
+    console.log('Enviando nuevo detalle al backend:', { ordenId, detalle });
+    const response = await apiClient.post(`/ordenes/${ordenId}/detalles/`, detalle);
+    console.log('Detalle creado exitosamente:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error agregando detalle de orden:', error);
+    console.error('Detalles del error:', error.response?.data);
+    throw error;
+  }
 };
