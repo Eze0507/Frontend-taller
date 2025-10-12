@@ -104,10 +104,10 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew, onEstadoChange }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("list"); // list o grid
   const [filtros, setFiltros] = useState({
-    tipoOrden: "",
+    fechaDesde: "",
+    fechaHasta: "",
     estadoOrden: "",
     asignadoA: "",
-    prioridad: "",
     estadoPago: ""
   });
 
@@ -120,14 +120,30 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew, onEstadoChange }) => {
         orden.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
         orden.numero.toLowerCase().includes(searchTerm.toLowerCase());
       
+      // Filtros de fecha
+      let matchesFecha = true;
+      if (filtros.fechaDesde || filtros.fechaHasta) {
+        const fechaOrden = new Date(orden.fechaCreacion || orden.fecha);
+        
+        if (filtros.fechaDesde) {
+          const fechaDesde = new Date(filtros.fechaDesde);
+          fechaDesde.setHours(0, 0, 0, 0); // Inicio del día
+          matchesFecha = matchesFecha && fechaOrden >= fechaDesde;
+        }
+        
+        if (filtros.fechaHasta) {
+          const fechaHasta = new Date(filtros.fechaHasta);
+          fechaHasta.setHours(23, 59, 59, 999); // Final del día
+          matchesFecha = matchesFecha && fechaOrden <= fechaHasta;
+        }
+      }
+      
       const matchesFilters = 
-        (!filtros.tipoOrden || orden.tipoOrden === filtros.tipoOrden) &&
-        (!filtros.estadoOrden || orden.estadoOrden === filtros.estadoOrden) &&
+        (!filtros.estadoOrden || orden.estadoOrden === filtros.estadoOrden || orden.estado === filtros.estadoOrden) &&
         (!filtros.asignadoA || orden.asignadoA === filtros.asignadoA) &&
-        (!filtros.prioridad || orden.prioridad === filtros.prioridad) &&
         (!filtros.estadoPago || orden.estadoPago === filtros.estadoPago);
       
-      return matchesSearch && matchesFilters;
+      return matchesSearch && matchesFecha && matchesFilters;
     });
   }, [searchTerm, ordenes, filtros]);
 
@@ -218,16 +234,39 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew, onEstadoChange }) => {
       <div className="bg-gray-700 text-white p-3">
         <div className="flex items-center justify-between">
           <div className="flex space-x-4">
-            <select
-              value={filtros.tipoOrden}
-              onChange={(e) => handleFiltroChange("tipoOrden", e.target.value)}
-              className="bg-gray-600 text-white px-3 py-1 rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div className="flex items-center space-x-2">
+              <label className="text-white text-sm font-medium">Desde:</label>
+              <input
+                type="date"
+                value={filtros.fechaDesde}
+                onChange={(e) => handleFiltroChange("fechaDesde", e.target.value)}
+                className="bg-gray-600 text-white px-3 py-1 rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                style={{
+                  colorScheme: 'dark'
+                }}
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <label className="text-white text-sm font-medium">Hasta:</label>
+              <input
+                type="date"
+                value={filtros.fechaHasta}
+                onChange={(e) => handleFiltroChange("fechaHasta", e.target.value)}
+                className="bg-gray-600 text-white px-3 py-1 rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                style={{
+                  colorScheme: 'dark'
+                }}
+              />
+            </div>
+            
+            <button
+              onClick={() => setFiltros(prev => ({ ...prev, fechaDesde: "", fechaHasta: "" }))}
+              className="bg-gray-500 hover:bg-gray-400 text-white px-3 py-1 rounded text-sm"
+              title="Limpiar filtros de fecha"
             >
-              <option value="">Tipo de orden</option>
-              <option value="Reparación">Reparación</option>
-              <option value="Mantención">Mantención</option>
-              <option value="Garantía">Garantía</option>
-            </select>
+              Limpiar fechas
+            </button>
             
             <select
               value={filtros.estadoOrden}
@@ -250,17 +289,6 @@ const OrdenList = ({ ordenes, onEdit, onDelete, onAddNew, onEstadoChange }) => {
               <option value="">Asignado a</option>
               <option value="Juan Pérez">Juan Pérez</option>
               <option value="María García">María García</option>
-            </select>
-            
-            <select
-              value={filtros.prioridad}
-              onChange={(e) => handleFiltroChange("prioridad", e.target.value)}
-              className="bg-gray-600 text-white px-3 py-1 rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Prioridad</option>
-              <option value="Alta">Alta</option>
-              <option value="Media">Media</option>
-              <option value="Baja">Baja</option>
             </select>
             
             <select

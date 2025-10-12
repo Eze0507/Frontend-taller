@@ -46,11 +46,13 @@ const transformOrdenFromAPI = (orden) => {
       day: 'numeric', 
       month: 'short' 
     }),
-    cliente: orden.cliente_nombre,
-    clienteTelefono: orden.cliente_telefono,
-    marcaModelo: `${orden.vehiculo_marca} ${orden.vehiculo_modelo}`,
-    vehiculo_placa: orden.vehiculo_placa,
-    total: `Bs${orden.total}`,
+    cliente: orden.cliente_nombre || 'Cliente no disponible',
+    clienteTelefono: orden.cliente_telefono || '',
+    marcaModelo: orden.vehiculo_marca && orden.vehiculo_modelo ? 
+      `${orden.vehiculo_marca} ${orden.vehiculo_modelo}` : 
+      'Vehículo no disponible',
+    vehiculo_placa: orden.vehiculo_placa || '',
+    total: `Bs${orden.total || 0}`,
     estado: orden.estado,
     fechaCreacion: orden.fecha_creacion,
     fechaInicio: orden.fecha_inicio,
@@ -60,9 +62,9 @@ const transformOrdenFromAPI = (orden) => {
     nivelCombustible: orden.nivel_combustible,
     observaciones: orden.observaciones,
     falloRequerimiento: orden.fallo_requerimiento,
-    subtotal: orden.subtotal,
-    impuesto: orden.impuesto,
-    descuento: orden.descuento,
+    subtotal: orden.subtotal || 0,
+    impuesto: orden.impuesto || 0,
+    descuento: orden.descuento || 0,
     vehiculo: orden.vehiculo,
     clienteId: orden.cliente,
     detalles: orden.detalles || [],
@@ -131,11 +133,38 @@ export const createOrden = async (ordenData) => {
     console.log('📤 Payload enviado:', payload);
     
     const response = await apiClient.post('/ordenes/', payload);
-    console.log('✅ Orden creada:', response.data);
+    console.log('✅ Orden creada - respuesta raw:', response.data);
     
-    return transformOrdenFromAPI(response.data);
+    const transformedOrden = transformOrdenFromAPI(response.data);
+    console.log('✅ Orden transformada:', transformedOrden);
+    
+    return transformedOrden;
   } catch (error) {
     console.error('❌ Error al crear orden:', error);
+    
+    if (error.response) {
+      console.error('📊 Detalles del error:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      });
+      
+      // Manejo específico de errores de validación del backend
+      if (error.response.status === 400) {
+        const errorData = error.response.data;
+        console.error('❌ Errores de validación:', errorData);
+        
+        if (typeof errorData === 'object') {
+          const errorMessages = Object.entries(errorData).map(([field, errors]) => {
+            const errorList = Array.isArray(errors) ? errors : [errors];
+            return `${field}: ${errorList.join(', ')}`;
+          }).join('\n');
+          throw new Error(`Errores de validación:\n${errorMessages}`);
+        }
+      }
+    }
+    
     throw new Error(`Error al crear orden: ${error.response?.data?.detail || error.message}`);
   }
 };
@@ -253,6 +282,45 @@ export const updateOrdenDescripcion = async (ordenId, descripcion) => {
     return response.data;
   } catch (error) {
     console.error('Error actualizando descripción de orden:', error);
+    throw error;
+  }
+};
+
+// Función para actualizar el kilometraje de una orden
+export const updateOrdenKilometraje = async (ordenId, kilometraje) => {
+  try {
+    const response = await apiClient.patch(`/ordenes/${ordenId}/`, {
+      kilometraje: kilometraje
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error actualizando kilometraje de orden:', error);
+    throw error;
+  }
+};
+
+// Función para actualizar el nivel de combustible de una orden
+export const updateOrdenNivelCombustible = async (ordenId, nivelCombustible) => {
+  try {
+    const response = await apiClient.patch(`/ordenes/${ordenId}/`, {
+      nivel_combustible: nivelCombustible
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error actualizando nivel de combustible de orden:', error);
+    throw error;
+  }
+};
+
+// Función para actualizar las observaciones de una orden
+export const updateOrdenObservaciones = async (ordenId, observaciones) => {
+  try {
+    const response = await apiClient.patch(`/ordenes/${ordenId}/`, {
+      observaciones: observaciones
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error actualizando observaciones de orden:', error);
     throw error;
   }
 };

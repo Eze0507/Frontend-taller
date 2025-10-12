@@ -1,6 +1,59 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchOrdenById, fetchVehiculoByOrden, fetchItemsCatalogo, deleteDetalleOrden, updateOrdenDescripcion, addDetalleOrden, updateOrdenEstado } from "../../api/ordenesApi.jsx";
+import { fetchOrdenById, fetchItemsCatalogo, deleteDetalleOrden, updateOrdenDescripcion, updateOrdenKilometraje, updateOrdenNivelCombustible, updateOrdenObservaciones, addDetalleOrden, updateOrdenEstado } from "../../api/ordenesApi.jsx";
+import { updateVehiculo, toApiVehiculo, fetchAllMarcas, fetchAllModelos, fetchModelosByMarca, fetchAllClientes, fetchVehiculoById } from "../../api/vehiculoApi";
+import Button from "../../components/button.jsx";
+import VehiculoForm from "../vehiculos/VehiculoForm";
+
+// Función para mapear los datos del vehículo al formato que espera VehiculoForm
+function mapVehiculoApiToForm(vehiculoApi, ordenApi, marcasList = [], modelosList = []) {
+  console.log('🔄 MAPEO - Datos de entrada:', { vehiculoApi, ordenApi, marcasList: marcasList.length, modelosList: modelosList.length });
+  
+  if (!vehiculoApi && !ordenApi) {
+    console.log('❌ MAPEO - No hay datos de vehículo ni orden');
+    return null;
+  }
+  
+  // Buscar nombres de marca y modelo en las listas cargadas
+  let marcaNombre = "";
+  let modeloNombre = "";
+  
+  if (vehiculoApi?.marca) {
+    const marcaEncontrada = marcasList.find(m => m.id === vehiculoApi.marca);
+    marcaNombre = marcaEncontrada?.nombre || "";
+  }
+  
+  if (vehiculoApi?.modelo) {
+    const modeloEncontrado = modelosList.find(m => m.id === vehiculoApi.modelo);
+    modeloNombre = modeloEncontrado?.nombre || "";
+  }
+  
+  const mapped = {
+    id: vehiculoApi?.id || ordenApi?.vehiculo || null,
+    numero_placa: vehiculoApi?.numero_placa || vehiculoApi?.placa || ordenApi?.vehiculo_placa || "",
+    vin: vehiculoApi?.vin || "",
+    numero_motor: vehiculoApi?.numero_motor || "",
+    tipo: vehiculoApi?.tipo || "",
+    version: vehiculoApi?.version || "",
+    color: vehiculoApi?.color || "",
+    año: vehiculoApi?.año || vehiculoApi?.anio || "",
+    cilindrada: vehiculoApi?.cilindrada || "",
+    tipo_combustible: vehiculoApi?.tipo_combustible || "",
+    cliente: (vehiculoApi?.cliente && typeof vehiculoApi.cliente === 'number') ? vehiculoApi.cliente : (vehiculoApi?.cliente?.id || ordenApi?.cliente || ""),
+    cliente_obj: vehiculoApi?.cliente_obj || null,
+    marca: (vehiculoApi?.marca && typeof vehiculoApi.marca === 'number') ? vehiculoApi.marca : (vehiculoApi?.marca?.id || ""),
+    marca_obj: vehiculoApi?.marca_obj || null,
+    modelo: (vehiculoApi?.modelo && typeof vehiculoApi.modelo === 'number') ? vehiculoApi.modelo : (vehiculoApi?.modelo?.id || ""),
+    modelo_obj: vehiculoApi?.modelo_obj || null,
+    // Agregar nombres para mostrar en la UI - usar múltiples fuentes
+    marca_nombre: marcaNombre || vehiculoApi?.marca_obj?.nombre || vehiculoApi?.marca_nombre || ordenApi?.vehiculo_marca || "",
+    modelo_nombre: modeloNombre || vehiculoApi?.modelo_obj?.nombre || vehiculoApi?.modelo_nombre || ordenApi?.vehiculo_modelo || "",
+    placa: vehiculoApi?.numero_placa || vehiculoApi?.placa || ordenApi?.vehiculo_placa || ""
+  };
+  
+  console.log('✅ MAPEO - Resultado:', mapped);
+  return mapped;
+}
 
 const OrdenDetalle = () => {
   const { id } = useParams();
@@ -14,7 +67,18 @@ const OrdenDetalle = () => {
   const [tipoItem, setTipoItem] = useState("catalogo"); // "catalogo" o "personalizado"
   const [descripcionLocal, setDescripcionLocal] = useState("");
   const [guardandoDescripcion, setGuardandoDescripcion] = useState(false);
+  const [kilometrajeLocal, setKilometrajeLocal] = useState("");
+  const [guardandoKilometraje, setGuardandoKilometraje] = useState(false);
+  const [nivelCombustibleLocal, setNivelCombustibleLocal] = useState(null); // Cambiar a null para detectar no inicializado
+  const [guardandoNivelCombustible, setGuardandoNivelCombustible] = useState(false);
+  const [observacionesLocal, setObservacionesLocal] = useState("");
+  const [guardandoObservaciones, setGuardandoObservaciones] = useState(false);
   const [showEstadoDropdown, setShowEstadoDropdown] = useState(false);
+  const [showVehiculoForm, setShowVehiculoForm] = useState(false);
+  const [marcas, setMarcas] = useState([]);
+  const [modelos, setModelos] = useState([]);
+  const [modelosFiltrados, setModelosFiltrados] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [newItem, setNewItem] = useState({
     item_id: null,
     item_personalizado: "",
@@ -44,17 +108,89 @@ const OrdenDetalle = () => {
   const loadOrdenData = async () => {
     try {
       setLoading(true);
-      const [ordenData, vehiculoData, itemsData] = await Promise.all([
-        fetchOrdenById(id),
-        fetchVehiculoByOrden(id),
-        fetchItemsCatalogo()
+      
+      // Primero cargar la orden para obtener el ID del vehículo
+      const ordenData = await fetchOrdenById(id);
+      console.log('📋 Orden cargada:', ordenData);
+      console.log('🚗 Datos de vehículo en orden:', {
+        vehiculo_marca: ordenData?.vehiculo_marca,
+        vehiculo_modelo: ordenData?.vehiculo_modelo,
+        vehiculo_placa: ordenData?.vehiculo_placa,
+        vehiculo: ordenData?.vehiculo
+      });
+      
+      // Cargar datos adicionales en paralelo
+      let vehiculoData = null;
+      const [itemsData, marcasData, modelosData, clientesData] = await Promise.all([
+        fetchItemsCatalogo(),
+        fetchAllMarcas(),
+        fetchAllModelos(),
+        fetchAllClientes()
       ]);
+      
+      // Cargar vehículo por separado para mejor manejo de errores
+      if (ordenData?.vehiculo) {
+        try {
+          console.log('🚗 Cargando vehículo con ID:', ordenData.vehiculo);
+          vehiculoData = await fetchVehiculoById(ordenData.vehiculo);
+          console.log('🚗 Datos del vehículo desde API:', vehiculoData);
+        } catch (vehiculoError) {
+          console.error('❌ Error cargando vehículo:', vehiculoError);
+          // Intentar usar datos básicos de la orden como fallback
+          vehiculoData = {
+            id: ordenData.vehiculo,
+            numero_placa: ordenData.vehiculo_placa || "",
+            marca_nombre: ordenData.vehiculo_marca || "",
+            modelo_nombre: ordenData.vehiculo_modelo || ""
+          };
+          console.log('⚠️ Usando datos básicos del vehículo desde orden:', vehiculoData);
+        }
+      } else {
+        console.log('⚠️ La orden no tiene vehículo asociado');
+      }
+      
+      // Mapear los datos del vehículo al formato que espera VehiculoForm
+      const vehiculoMapeado = mapVehiculoApiToForm(vehiculoData, ordenData, marcasData, modelosData);
+      console.log('🔄 Vehículo mapeado para formulario:', vehiculoMapeado);
+      
       setOrden(ordenData);
-      setVehiculo(vehiculoData);
+      setVehiculo(vehiculoMapeado);
       setItemsCatalogo(itemsData);
+      setMarcas(marcasData);
+      setModelos(modelosData);
+      setClientes(clientesData);
       setDescripcionLocal(ordenData.falloRequerimiento || ordenData.descripcion || "");
+      setKilometrajeLocal(ordenData.kilometraje || "");
+      
+      // Inicializar nivel de combustible de forma más explícita
+      const nivelCombustible = ordenData.nivel_combustible !== undefined && ordenData.nivel_combustible !== null 
+        ? parseInt(ordenData.nivel_combustible) 
+        : 0;
+      setNivelCombustibleLocal(nivelCombustible);
+      
+      setObservacionesLocal(ordenData.observaciones || "");
+      
+      // DEBUG: Verificar valores iniciales para auto-guardado
+      console.log('🔧 VALORES INICIALES CARGADOS:', {
+        descripcion: ordenData.falloRequerimiento || ordenData.descripcion || "",
+        kilometraje: ordenData.kilometraje || "",
+        nivel_combustible_crudo: ordenData.nivel_combustible,
+        nivel_combustible_parseado: nivelCombustible,
+        nivel_combustible_tipo: typeof ordenData.nivel_combustible,
+        observaciones: ordenData.observaciones || ""
+      });
+      
+      // DEBUG: Mostrar información final de vehículo para la UI
+      console.log('🎯 INFO FINAL PARA UI:', {
+        orden_vehiculo_marca: ordenData?.vehiculo_marca,
+        orden_vehiculo_modelo: ordenData?.vehiculo_modelo,
+        vehiculo_mapeado_marca_nombre: vehiculoMapeado?.marca_nombre,
+        vehiculo_mapeado_modelo_nombre: vehiculoMapeado?.modelo_nombre,
+        final_display: `${ordenData?.vehiculo_marca || vehiculoMapeado?.marca_nombre || "Sin marca"} ${ordenData?.vehiculo_modelo || vehiculoMapeado?.modelo_nombre || "Sin modelo"}`
+      });
     } catch (error) {
       console.error("Error cargando datos:", error);
+      alert("Error al cargar los datos de la orden. Verifica que la orden existe.");
     } finally {
       setLoading(false);
     }
@@ -195,6 +331,43 @@ const OrdenDetalle = () => {
   // Obtener el estado actual
   const estadoActual = estadosDisponibles.find(estado => estado.value === orden?.estado) || estadosDisponibles[0];
 
+  // Funciones para manejo del vehículo
+  const handleEditVehiculo = () => {
+    console.log('🔧 EDITANDO VEHÍCULO - Datos actuales:', {
+      vehiculo: vehiculo,
+      orden: orden,
+      marcas: marcas,
+      clientes: clientes
+    });
+    setShowVehiculoForm(true);
+  };
+
+  const handleSaveVehiculo = async (vehiculoData) => {
+    try {
+      setLoading(true);
+      
+      console.log('💾 Guardando cambios del vehículo:', vehiculoData);
+      await updateVehiculo(vehiculo.id, toApiVehiculo(vehiculoData));
+      
+      // Recargar los datos del vehículo desde la API del vehículo
+      const vehiculoActualizado = await fetchVehiculoById(vehiculo.id);
+      const vehiculoMapeado = mapVehiculoApiToForm(vehiculoActualizado, orden, marcas, modelos);
+      setVehiculo(vehiculoMapeado);
+      
+      setShowVehiculoForm(false);
+      alert("Vehículo actualizado correctamente");
+    } catch (error) {
+      console.error("Error actualizando vehículo:", error);
+      alert("Error al actualizar el vehículo: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelVehiculo = () => {
+    setShowVehiculoForm(false);
+  };
+
   // useEffect para auto-guardar la descripción con debounce
   useEffect(() => {
     if (!orden || !orden.id) return;
@@ -224,6 +397,130 @@ const OrdenDetalle = () => {
 
     return () => clearTimeout(timeoutId);
   }, [descripcionLocal, orden]);
+
+  // useEffect para auto-guardar el kilometraje con debounce
+  useEffect(() => {
+    if (!orden || !orden.id) return;
+
+    const timeoutId = setTimeout(async () => {
+      const kilometrajeOriginal = orden.kilometraje || "";
+      
+      // Solo guardar si el kilometraje ha cambiado
+      if (kilometrajeLocal !== kilometrajeOriginal) {
+        try {
+          setGuardandoKilometraje(true);
+          await updateOrdenKilometraje(orden.id, kilometrajeLocal);
+          
+          // Actualizar el estado local de la orden
+          setOrden(prevOrden => ({
+            ...prevOrden,
+            kilometraje: kilometrajeLocal
+          }));
+        } catch (error) {
+          console.error('Error guardando kilometraje:', error);
+        } finally {
+          setGuardandoKilometraje(false);
+        }
+      }
+    }, 1500); // Esperar 1.5 segundos después de que el usuario deje de escribir
+
+    return () => clearTimeout(timeoutId);
+  }, [kilometrajeLocal, orden]);
+
+  // useEffect para auto-guardar el nivel de combustible
+  useEffect(() => {
+    // No hacer nada si no está inicializado o no hay orden
+    if (!orden || !orden.id || nivelCombustibleLocal === null) return;
+
+    const timeoutId = setTimeout(async () => {
+      const nivelOriginal = orden.nivel_combustible !== undefined && orden.nivel_combustible !== null 
+        ? parseInt(orden.nivel_combustible) 
+        : 0;
+      
+      console.log('🔥 DEBUG NIVEL COMBUSTIBLE:', {
+        nivelCombustibleLocal,
+        nivelOriginal,
+        orden_nivel_combustible: orden.nivel_combustible,
+        cambio_detectado: nivelCombustibleLocal !== nivelOriginal,
+        tipos: {
+          local: typeof nivelCombustibleLocal,
+          original: typeof nivelOriginal
+        },
+        inicializado: nivelCombustibleLocal !== null
+      });
+      
+      // Solo guardar si el nivel de combustible ha cambiado
+      if (nivelCombustibleLocal !== nivelOriginal) {
+        try {
+          console.log('💾 Guardando nivel de combustible:', nivelCombustibleLocal);
+          setGuardandoNivelCombustible(true);
+          await updateOrdenNivelCombustible(orden.id, nivelCombustibleLocal);
+          
+          // Actualizar el estado local de la orden
+          setOrden(prevOrden => ({
+            ...prevOrden,
+            nivel_combustible: nivelCombustibleLocal
+          }));
+          console.log('✅ Nivel de combustible guardado exitosamente');
+        } catch (error) {
+          console.error('Error guardando nivel de combustible:', error);
+        } finally {
+          setGuardandoNivelCombustible(false);
+        }
+      }
+    }, 1000); // Para el nivel de combustible, guardar más rápido (1 segundo)
+
+    return () => clearTimeout(timeoutId);
+  }, [nivelCombustibleLocal, orden]);
+
+  // useEffect adicional para sincronizar el estado local cuando cambia la orden
+  useEffect(() => {
+    if (orden && orden.id && (orden.nivel_combustible !== undefined && orden.nivel_combustible !== null)) {
+      const nivelFromOrden = parseInt(orden.nivel_combustible);
+      
+      console.log('🔄 SINCRONIZANDO NIVEL COMBUSTIBLE:', {
+        desde_orden: orden.nivel_combustible,
+        parseado: nivelFromOrden,
+        estado_actual: nivelCombustibleLocal,
+        necesita_sync: nivelFromOrden !== nivelCombustibleLocal
+      });
+      
+      // Solo actualizar si es diferente y el estado local no está inicializado o es diferente
+      if (nivelCombustibleLocal === null || nivelFromOrden !== nivelCombustibleLocal) {
+        console.log('⚡ Sincronizando nivel de combustible a:', nivelFromOrden);
+        setNivelCombustibleLocal(nivelFromOrden);
+      }
+    }
+  }, [orden?.nivel_combustible, orden?.id]);
+
+  // useEffect para auto-guardar las observaciones con debounce
+  useEffect(() => {
+    if (!orden || !orden.id) return;
+
+    const timeoutId = setTimeout(async () => {
+      const observacionesOriginal = orden.observaciones || "";
+      
+      // Solo guardar si las observaciones han cambiado
+      if (observacionesLocal !== observacionesOriginal) {
+        try {
+          setGuardandoObservaciones(true);
+          await updateOrdenObservaciones(orden.id, observacionesLocal);
+          
+          // Actualizar el estado local de la orden
+          setOrden(prevOrden => ({
+            ...prevOrden,
+            observaciones: observacionesLocal
+          }));
+        } catch (error) {
+          console.error('Error guardando observaciones:', error);
+        } finally {
+          setGuardandoObservaciones(false);
+        }
+      }
+    }, 1500); // Esperar 1.5 segundos después de que el usuario deje de escribir
+
+    return () => clearTimeout(timeoutId);
+  }, [observacionesLocal, orden]);
 
   const handleDeleteItem = async (index) => {
     try {
@@ -418,9 +715,6 @@ const OrdenDetalle = () => {
                   </div>
                 )}
               </div>
-              <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">
-                Ingresar pago
-              </button>
             </div>
           </div>
         </div>
@@ -746,10 +1040,17 @@ const OrdenDetalle = () => {
                       <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
                         <span className="text-xs font-bold">T</span>
                       </div>
-                      <span className="font-semibold">{vehiculo?.marca} {vehiculo?.modelo}</span>
+                      <span className="font-semibold">
+                        {orden?.vehiculo_marca || vehiculo?.marca_nombre || "Sin marca"} {orden?.vehiculo_modelo || vehiculo?.modelo_nombre || "Sin modelo"}
+                      </span>
                     </div>
                     <div className="flex space-x-2">
-                      <button className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
+                      <button 
+                        onClick={handleEditVehiculo}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Editar
+                      </button>
                       <button className="text-red-500 hover:text-red-700">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -758,8 +1059,8 @@ const OrdenDetalle = () => {
                     </div>
                   </div>
                   <div className="text-sm text-gray-600">
-                    <div>{vehiculo?.placa}</div>
-                    <div>{vehiculo?.año} - {vehiculo?.color}</div>
+                    <div>{vehiculo?.placa || vehiculo?.numero_placa || orden?.vehiculo_placa || "Sin placa"}</div>
+                    <div>{vehiculo?.año || "Sin año"} - {vehiculo?.color || "Sin color"}</div>
                   </div>
                 </div>
 
@@ -767,10 +1068,17 @@ const OrdenDetalle = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Kilometraje actual
+                    {guardandoKilometraje && (
+                      <span className="ml-2 text-xs text-blue-600">
+                        Guardando...
+                      </span>
+                    )}
                   </label>
                   <input
                     type="text"
-                    defaultValue={orden.kilometraje}
+                    value={kilometrajeLocal}
+                    onChange={(e) => setKilometrajeLocal(e.target.value)}
+                    placeholder="Ingrese el kilometraje actual"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -779,17 +1087,54 @@ const OrdenDetalle = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nivel de combustible o carga
+                    {guardandoNivelCombustible && (
+                      <span className="ml-2 text-xs text-blue-600">
+                        Guardando...
+                      </span>
+                    )}
                   </label>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2 relative">
-                      <div className="bg-green-500 h-2 rounded-full w-3/4"></div>
+                  <div className="space-y-3">
+                    {/* Indicador visual */}
+                    <div className="flex items-center space-x-2">
+                      <div className="flex-1 bg-gray-200 rounded-full h-3 relative">
+                        <div 
+                          className="bg-green-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${nivelCombustibleLocal !== null ? (nivelCombustibleLocal / 4) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex space-x-1 text-xs text-gray-600">
+                        <span>E</span>
+                        <span>1/4</span>
+                        <span>1/2</span>
+                        <span>3/4</span>
+                        <span>F</span>
+                      </div>
                     </div>
-                    <div className="flex space-x-1 text-xs">
-                      <span>E</span>
-                      <span>1/4</span>
-                      <span>1/2</span>
-                      <span>3/4</span>
-                      <span>F</span>
+                    
+                    {/* Controles de selección */}
+                    <div className="flex space-x-2">
+                      {[
+                        { value: 0, label: 'E (Vacío)' },
+                        { value: 1, label: '1/4' },
+                        { value: 2, label: '1/2' },
+                        { value: 3, label: '3/4' },
+                        { value: 4, label: 'F (Lleno)' }
+                      ].map((nivel) => (
+                        <button
+                          key={nivel.value}
+                          onClick={() => setNivelCombustibleLocal(nivel.value)}
+                          disabled={nivelCombustibleLocal === null}
+                          className={`flex-1 py-1 px-2 text-xs rounded-md border transition-colors ${
+                            nivelCombustibleLocal === nivel.value
+                              ? 'bg-blue-500 text-white border-blue-500'
+                              : nivelCombustibleLocal === null
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {nivel.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -812,10 +1157,17 @@ const OrdenDetalle = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Estado general del vehículo
+                    {guardandoObservaciones && (
+                      <span className="ml-2 text-xs text-blue-600">
+                        Guardando...
+                      </span>
+                    )}
                   </label>
                   <textarea
-                    defaultValue={orden.estadoVehiculo}
+                    value={observacionesLocal}
+                    onChange={(e) => setObservacionesLocal(e.target.value)}
                     rows={3}
+                    placeholder="Describa el estado general del vehículo, daños visibles, condición de la carrocería, etc."
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -863,6 +1215,23 @@ const OrdenDetalle = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal para editar vehículo */}
+      {showVehiculoForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-4">
+            <VehiculoForm
+              initialData={vehiculo}
+              clientes={clientes}
+              marcas={marcas}
+              modelos={modelos}
+              onSubmit={handleSaveVehiculo}
+              onCancel={handleCancelVehiculo}
+              loading={loading}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

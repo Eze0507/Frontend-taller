@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import OrdenList from "./OrdenList.jsx";
+import OrdenForm from "./OrdenForm.jsx";
 import {
   fetchAllOrdenes,
   createOrden, 
@@ -14,6 +15,7 @@ const OrdenPage = () => {
   const [ordenes, setOrdenes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [showOrdenForm, setShowOrdenForm] = useState(false);
 
   async function loadOrdenes() {
     setLoading(true);
@@ -90,8 +92,25 @@ const OrdenPage = () => {
 
   const handleAddNew = () => {
     setEditing(null);
-    // Aquí podrías abrir un modal de formulario o navegar a una página de creación
-    alert("Funcionalidad de nueva orden - próximamente");
+    setShowOrdenForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowOrdenForm(false);
+  };
+
+  const handleSaveOrden = async (nuevaOrden) => {
+    try {
+      setShowOrdenForm(false);
+      alert("Orden de trabajo creada correctamente");
+      
+      // Solo recargar la lista para mostrar la nueva orden
+      await loadOrdenes();
+      
+    } catch (error) {
+      console.error('Error en handleSaveOrden:', error);
+      alert("Orden creada pero hubo un problema al cargar la lista. Recarga la página.");
+    }
   };
 
   const handleEstadoChange = async (ordenId, nuevoEstado) => {
@@ -126,6 +145,13 @@ const OrdenPage = () => {
         onAddNew={handleAddNew}
         onEstadoChange={handleEstadoChange}
       />
+      
+      {showOrdenForm && (
+        <OrdenForm 
+          onClose={handleCloseForm}
+          onSave={handleSaveOrden}
+        />
+      )}
     </div>
   );
 };
