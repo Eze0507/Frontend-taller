@@ -14,6 +14,7 @@ import OrdenPage from "../pages/ordenes/OrdenPage.jsx";
 import OrdenDetalle from "../pages/ordenes/OrdenDetalle.jsx";
 import PresupuestoPage from "../pages/presupuestos/PresupuestoPage.jsx";
 import PresupuestoDetalle from "../pages/presupuestos/PresupuestoDetalle.jsx";
+import VehiculoPage from "../pages/vehiculos/VehiculoPage.jsx";
 
 const AdminRoutes = () => {
   const isAuthenticated = !!localStorage.getItem("access");
@@ -56,6 +57,7 @@ const AppRouter = () => {
           <Route path="/admin/cargos" element={<CargoPage />} />
           <Route path="/admin/empleados" element={<EmpleadoPage />} />
           <Route path="/admin/clientes" element={<ClientePage />} />
+          <Route path="/admin/operaciones/vehiculos" element={<VehiculoPage />} />
           <Route path="/admin/roles" element={<RolePage />} />
           <Route path="/ordenes" element={<OrdenPage />} />
           <Route path="/ordenes/:id" element={<OrdenDetalle />} />
