@@ -1,25 +1,34 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
-import Layout from "../pages/layout";
-import Dashboard from "../pages/dashboard/dashboard.jsx";
-import UserPage from "../pages/usuario/UserPage.jsx";
-import CargoPage from "../pages/cargo/cargoPage.jsx";
-import HomePage from "../pages/home/HomePage.jsx";
-import LoginPage from "../pages/login/loginPage.jsx"; // 👈 importar login
-import RegisterPage from "../pages/register/RegisterPage.jsx";
-import EmpleadoPage from "../pages/empleados/EmpleadoPage.jsx";
-import RolePage from "../pages/roles/rolePage.jsx";
-import ClientePage from "../pages/cliente/ClientePage.jsx";
-import OrdenPage from "../pages/ordenes/OrdenPage.jsx";
-import OrdenDetalle from "../pages/ordenes/OrdenDetalle.jsx";
-import PresupuestoPage from "../pages/presupuestos/PresupuestoPage.jsx";
-import PresupuestoDetalle from "../pages/presupuestos/PresupuestoDetalle.jsx";
-import ItemTallerPage from "../pages/ItemTaller/ItemTallerPage.jsx";
-import ItemVentaPage from "../pages/ItemVenta/ItemVentaPage.jsx";
-import ServicioPage from "../pages/Servicios/ServicioPage.jsx";
-import AreaPage from "../pages/area/areaPage.jsx";
-import VehiculoPage from "../pages/vehiculos/VehiculoPage.jsx";
-import BitacoraPage from "../pages/bitacora/BitacoraPage.jsx";
+import Layout from "@/pages/layout"; // <-- CORREGIDO
+import Dashboard from "@/pages/dashboard/dashboard.jsx"; // <-- CORREGIDO
+import UserPage from "@/pages/usuario/UserPage.jsx"; // <-- CORREGIDO
+import CargoPage from "@/pages/cargo/cargoPage.jsx"; // <-- CORREGIDO
+import HomePage from "@/pages/home/HomePage.jsx"; // <-- CORREGIDO
+import LoginPage from "@/pages/login/loginPage.jsx"; // <-- CORREGIDO
+import RegisterPage from "@/pages/register/RegisterPage.jsx"; // <-- CORREGIDO
+import EmpleadoPage from "@/pages/empleados/EmpleadoPage.jsx"; // <-- CORREGIDO
+import RolePage from "@/pages/roles/rolePage.jsx"; // <-- CORREGIDO
+import ClientePage from "@/pages/cliente/ClientePage.jsx"; // <-- CORREGIDO
+import CitaPage from "@/pages/cliente/citas/CitaPage.jsx"; // <-- Citas
+import OrdenPage from "@/pages/ordenes/OrdenPage.jsx"; // <-- CORREGIDO
+import OrdenDetalle from "@/pages/ordenes/OrdenDetalle.jsx"; // <-- CORREGIDO
+import MisOrdenesPage from "@/pages/ordenes/MisOrdenesPage.jsx"; // <-- Página para clientes
+import PresupuestoPage from "@/pages/presupuestos/PresupuestoPage.jsx"; // <-- CORREGIDO
+import PresupuestoDetalle from "@/pages/presupuestos/PresupuestoDetalle.jsx"; // <-- CORREGIDO
+import PresupuestoForm from "../pages/presupuestos/PresupuestoForm.jsx";
+import ItemTallerPage from "@/pages/itemtaller/ItemTallerPage.jsx"; // <-- CORREGIDO
+import ItemVentaPage from "@/pages/itemventa/ItemVentaPage.jsx"; // <-- CORREGIDO
+import ServicioPage from "@/pages/servicios/ServicioPage.jsx"; // <-- CORREGIDO
+import AreaPage from "@/pages/area/areaPage.jsx"; // <-- CORREGIDO
+import VehiculoPage from "@/pages/vehiculos/VehiculoPage.jsx"; // <-- CORREGIDO
+import BitacoraPage from "@/pages/bitacora/BitacoraPage.jsx"; // <-- CORREGIDO
+import PagosList from "@/pages/pagos/PagosList.jsx"; // <-- Módulo de Pagos
+import PagoDetalle from "@/pages/pagos/PagoDetalle.jsx"; // <-- Módulo de Pagos
+import PagoCheckout from "@/pages/pagos/PagoCheckout.jsx"; // <-- Módulo de Pagos
+import ReconocimientoPage from "@/pages/reconocimiento/ReconocimientoPage.jsx"; // <-- RECONOCIMIENTO DE PLACAS
+import ProveedorPage from "@/pages/proveedor/ProveedorPage.jsx"; // <-- Módulo de Proveedores
+import FacturaProveedorPage from "@/pages/facturaproveedor/FacturaProveedorPage.jsx"; // <-- Módulo de Facturas Proveedor
 
 const AdminRoutes = () => {
   const isAuthenticated = !!localStorage.getItem("access");
@@ -38,6 +47,8 @@ const AdminRoutes = () => {
 const AppRouter = () => {
   // Esta comprobación se hace ahora dentro de cada ruta protegida o en el redirect
   const isAuthenticated = !!localStorage.getItem("access");
+  const rawRole = (localStorage.getItem("userRole") || '').toLowerCase();
+  const role = rawRole === 'administrador' ? 'admin' : rawRole;
 
   return (
     <BrowserRouter>
@@ -49,35 +60,82 @@ const AppRouter = () => {
         />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Ruta de login */}
-        <Route path="/login" element={<LoginPage />} />
+        {/* Ruta de login - redirige si ya está autenticado */}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated 
+              ? (role === 'cliente' ? <Navigate to="/admin/home" replace /> : <Navigate to="/admin/dashboard" replace />)
+              : <LoginPage />
+          } 
+        />
         
         {/* Página Home independiente (sin sidebar) */}
-        <Route path="/admin/home" element={<HomePage />} />
+        <Route 
+          path="/admin/home" 
+          element={isAuthenticated ? <HomePage /> : <Navigate to="/login" replace />} 
+        />
+        
+        {/* Mis Órdenes: solo clientes - Vista de solo lectura (sin sidebar) */}
+        <Route 
+          path="/mis-ordenes" 
+          element={
+            isAuthenticated && role === 'cliente' 
+              ? <MisOrdenesPage /> 
+              : <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/mis-ordenes/:id" 
+          element={
+            isAuthenticated && role === 'cliente' 
+              ? <OrdenDetalle /> 
+              : <Navigate to="/login" replace />
+          } 
+        />
 
         {/* Páginas del panel de administrador */}
         <Route element={<AdminRoutes />}>
-          <Route path="/admin/dashboard" element={<Dashboard />} />
-          <Route path="/admin/usuarios" element={<UserPage />} />
-          <Route path="/admin/cargos" element={<CargoPage />} />
-          <Route path="/admin/empleados" element={<EmpleadoPage />} />
-          <Route path="/admin/clientes" element={<ClientePage />} />
-          <Route path="/admin/operaciones/vehiculos" element={<VehiculoPage />} />
-          <Route path="/admin/roles" element={<RolePage />} />
-          <Route path="/ordenes" element={<OrdenPage />} />
-          <Route path="/ordenes/:id" element={<OrdenDetalle />} />
-          <Route path="/presupuestos" element={<PresupuestoPage />} />
-          <Route path="/presupuestos/:id" element={<PresupuestoDetalle />} />
+          {/* Dashboard: admin y empleado */}
+          <Route path="/admin/dashboard" element={(role === 'admin' || role === 'empleado') ? <Dashboard /> : <Navigate to="/admin/home" replace />} />
+          {/* Administración: solo admin */}
+          <Route path="/admin/usuarios" element={(role === 'admin') ? <UserPage /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/admin/cargos" element={(role === 'admin') ? <CargoPage /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/admin/empleados" element={(role === 'admin') ? <EmpleadoPage /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/admin/roles" element={(role === 'admin') ? <RolePage /> : <Navigate to="/admin/home" replace />} />
+          {/* Clientes: admin y empleado */}
+          <Route path="/admin/clientes" element={(role === 'admin' || role === 'empleado') ? <ClientePage /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/admin/clientes/citas" element={(role === 'admin' || role === 'empleado') ? <CitaPage /> : <Navigate to="/admin/home" replace />} />
+          {/* Operaciones: admin y empleado */}
+          <Route path="/admin/operaciones/vehiculos" element={(role === 'admin' || role === 'empleado') ? <VehiculoPage /> : <Navigate to="/admin/home" replace />} />
+          {/* Órdenes: admin y empleado - Panel administrativo */}
+          <Route path="/ordenes" element={(role === 'admin' || role === 'empleado') ? <OrdenPage /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/ordenes/:id" element={(role === 'admin' || role === 'empleado') ? <OrdenDetalle /> : <Navigate to="/admin/home" replace />} />
+          {/* Presupuestos: admin y empleado */}
+          <Route path="/presupuestos" element={(role === 'admin' || role === 'empleado') ? <PresupuestoPage /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/presupuestos/nuevo" element={(role === 'admin' || role === 'empleado') ? <PresupuestoForm /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/presupuestos/:id" element={(role === 'admin' || role === 'empleado') ? <PresupuestoDetalle /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/presupuestos/:id/editar" element={(role === 'admin' || role === 'empleado') ? <PresupuestoForm /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para ítems de taller */}
-          <Route path="/admin/operaciones/inventario/taller" element={<ItemTallerPage />} />
+          <Route path="/admin/operaciones/inventario/taller" element={(role === 'admin' || role === 'empleado') ? <ItemTallerPage /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para ítems de venta */}
-          <Route path="/admin/operaciones/inventario/venta" element={<ItemVentaPage />} />
+          <Route path="/admin/operaciones/inventario/venta" element={(role === 'admin' || role === 'empleado') ? <ItemVentaPage /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para servicios */}
-          <Route path="/admin/operaciones/servicios" element={<ServicioPage />} />
+          <Route path="/admin/operaciones/servicios" element={(role === 'admin' || role === 'empleado') ? <ServicioPage /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para áreas */}
-          <Route path="/admin/operaciones/area" element={<AreaPage />} />
+          <Route path="/admin/operaciones/area" element={(role === 'admin' || role === 'empleado') ? <AreaPage /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para bitácora */}
-          <Route path="/admin/bitacora" element={<BitacoraPage />} />
+          <Route path="/admin/bitacora" element={(role === 'admin') ? <BitacoraPage /> : <Navigate to="/admin/home" replace />} />
+          {/* Rutas para el módulo de Pagos */}
+          <Route path="/pagos" element={(role === 'admin') ? <PagosList /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/pagos/:pagoId" element={(role === 'admin') ? <PagoDetalle /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/pagos/checkout/:ordenId" element={(role === 'admin') ? <PagoCheckout /> : <Navigate to="/admin/home" replace />} />
+          {/* Ruta para factura de proveedor */}
+          <Route path="/admin/finanzas/facturas-proveedor" element={(role === 'admin') ? <FacturaProveedorPage /> : <Navigate to="/admin/home" replace />} />
+          {/* Ruta para reconocimiento de placas */}
+          <Route path="/admin/reconocimiento" element={(role === 'admin' || role === 'empleado') ? <ReconocimientoPage /> : <Navigate to="/admin/home" replace />} />
+          {/* Ruta para proveedores */}
+          <Route path="/admin/proveedores" element={(role === 'admin' || role === 'empleado') ? <ProveedorPage /> : <Navigate to="/admin/home" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

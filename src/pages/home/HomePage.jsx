@@ -1,27 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FaCar, FaWrench, FaOilCan, FaCogs, FaChartLine, FaBolt, FaTools, FaTachometerAlt, FaUser, FaSignOutAlt, FaChevronDown } from 'react-icons/fa';
+import { Link, useNavigate } from 'react-router-dom';
+import { FaCar, FaWrench, FaOilCan, FaCogs, FaChartLine, FaBolt, FaTools, FaTachometerAlt, FaUser, FaSignOutAlt, FaChevronDown, FaClipboardList } from 'react-icons/fa';
 import UserProfile from '../../components/UserProfile';
+import { useAuth } from '../../hooks/useAuth';
 
 const HomePage = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [username, setUsername] = useState('Usuario');
+  const [userRole, setUserRole] = useState('Invitado');
 
   // Obtener el nombre del usuario del localStorage
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
+    const storedRole = (localStorage.getItem('userRole') || '').toLowerCase();
     if (storedUsername) {
       setUsername(storedUsername);
     }
+    if (storedRole) {
+      setUserRole(storedRole === 'administrador' ? 'admin' : storedRole);
+    }
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("username");
-    localStorage.removeItem("userRole");
-    window.location.href = "/login";
+  const handleLogout = async () => {
+    try {
+      console.log("🚪 Iniciando logout desde HomePage...");
+      await logout({ navigate });
+      // El hook useAuth ya redirige con window.location.href
+    } catch (error) {
+      console.error("❌ Error durante el logout:", error);
+      // Fallback: forzar redirección al login incluso si hay error
+      window.location.href = "/login";
+    }
   };
 
   return (
@@ -38,12 +50,24 @@ const HomePage = () => {
               <h1 className="text-xl font-bold text-gray-800">AutoFix</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Link 
-                to="/admin/dashboard"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-              >
-                Panel Administrativo
-              </Link>
+              {userRole !== 'cliente' && (
+                <Link 
+                  to="/admin/dashboard"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/admin/dashboard');
+                    // Fallback duro por si el Router no navega por estado estancado
+                    setTimeout(() => {
+                      if (window.location.pathname !== '/admin/dashboard') {
+                        window.location.href = '/admin/dashboard';
+                      }
+                    }, 50);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                >
+                  Panel Administrativo
+                </Link>
+              )}
               
               {/* User Dropdown */}
               <div className="relative">
@@ -68,6 +92,23 @@ const HomePage = () => {
                         <FaUser className="mr-3 text-gray-400" />
                         Ver Perfil
                       </button>
+                      
+                      {userRole === 'cliente' && (
+                        <button
+                          onClick={() => {
+                            console.log('🔵 [HomePage] Click en Mis Órdenes');
+                            console.log('🔵 [HomePage] userRole:', userRole);
+                            console.log('🔵 [HomePage] Navegando a /mis-ordenes');
+                            setShowUserDropdown(false);
+                            navigate('/mis-ordenes');
+                          }}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                        >
+                          <FaClipboardList className="mr-3 text-gray-400" />
+                          Mis Órdenes
+                        </button>
+                      )}
+                      
                       <hr className="border-gray-200" />
                       <button
                         onClick={handleLogout}
