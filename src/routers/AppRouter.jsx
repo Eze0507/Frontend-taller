@@ -7,6 +7,7 @@ import CargoPage from "@/pages/cargo/cargoPage.jsx"; // <-- CORREGIDO
 import HomePage from "@/pages/home/HomePage.jsx"; // <-- CORREGIDO
 import LoginPage from "@/pages/login/loginPage.jsx"; // <-- CORREGIDO
 import RegisterPage from "@/pages/register/RegisterPage.jsx"; // <-- CORREGIDO
+import TallerRegisterPage from "@/pages/register/TallerRegisterPage.jsx"; // <-- Registro de Taller
 import EmpleadoPage from "@/pages/empleados/EmpleadoPage.jsx"; // <-- CORREGIDO
 import RolePage from "@/pages/roles/rolePage.jsx"; // <-- CORREGIDO
 import ClientePage from "@/pages/cliente/ClientePage.jsx"; // <-- CORREGIDO
@@ -14,6 +15,8 @@ import CitaPage from "@/pages/cliente/citas/CitaPage.jsx"; // <-- Citas
 import OrdenPage from "@/pages/ordenes/OrdenPage.jsx"; // <-- CORREGIDO
 import OrdenDetalle from "@/pages/ordenes/OrdenDetalle.jsx"; // <-- CORREGIDO
 import MisOrdenesPage from "@/pages/ordenes/MisOrdenesPage.jsx"; // <-- Página para clientes
+import MisCitasPage from "@/pages/cliente/citas_cliente/MisCitasPage.jsx"; // <-- Página de citas para clientes
+import NuevaCitaPage from "@/pages/cliente/citas_cliente/NuevaCitaPage.jsx"; // <-- Página para crear nueva cita
 import PresupuestoPage from "@/pages/presupuestos/PresupuestoPage.jsx"; // <-- CORREGIDO
 import PresupuestoDetalle from "@/pages/presupuestos/PresupuestoDetalle.jsx"; // <-- CORREGIDO
 import PresupuestoForm from "../pages/presupuestos/PresupuestoForm.jsx";
@@ -29,6 +32,9 @@ import PagoCheckout from "@/pages/pagos/PagoCheckout.jsx"; // <-- Módulo de Pag
 import ReconocimientoPage from "@/pages/reconocimiento/ReconocimientoPage.jsx"; // <-- RECONOCIMIENTO DE PLACAS
 import ProveedorPage from "@/pages/proveedor/ProveedorPage.jsx"; // <-- Módulo de Proveedores
 import FacturaProveedorPage from "@/pages/facturaproveedor/FacturaProveedorPage.jsx"; // <-- Módulo de Facturas Proveedor
+import ReportesPage from "@/pages/reportes/ReportesPage.jsx"; // <-- Módulo de Reportes
+import TallerPage from "@/pages/taller/TallerPage.jsx"; // <-- Mi Taller
+import BackupPage from "@/pages/backup/BackupPage.jsx"; // <-- Backup y Restore
 
 const AdminRoutes = () => {
   const isAuthenticated = !!localStorage.getItem("access");
@@ -53,12 +59,17 @@ const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Ruta por defecto */}
+        {/* Ruta por defecto - HomePage pública */}
         <Route
           path="/"
-          element={<Navigate to="/login" />}
+          element={
+            isAuthenticated 
+              ? <Navigate to="/admin/home" replace />
+              : <HomePage />
+          }
         />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register-taller" element={<TallerRegisterPage />} />
 
         {/* Ruta de login - redirige si ya está autenticado */}
         <Route 
@@ -70,10 +81,10 @@ const AppRouter = () => {
           } 
         />
         
-        {/* Página Home independiente (sin sidebar) */}
+        {/* Página Home del usuario autenticado (sin sidebar) */}
         <Route 
           path="/admin/home" 
-          element={isAuthenticated ? <HomePage /> : <Navigate to="/login" replace />} 
+          element={isAuthenticated ? <HomePage /> : <Navigate to="/" replace />} 
         />
         
         {/* Mis Órdenes: solo clientes - Vista de solo lectura (sin sidebar) */}
@@ -93,11 +104,31 @@ const AppRouter = () => {
               : <Navigate to="/login" replace />
           } 
         />
+        
+        {/* Mis Citas: solo clientes - Vista de solo lectura (sin sidebar) */}
+        <Route 
+          path="/mis-citas" 
+          element={
+            isAuthenticated && role === 'cliente' 
+              ? <MisCitasPage /> 
+              : <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/mis-citas/nueva" 
+          element={
+            isAuthenticated && role === 'cliente' 
+              ? <NuevaCitaPage /> 
+              : <Navigate to="/login" replace />
+          } 
+        />
 
         {/* Páginas del panel de administrador */}
         <Route element={<AdminRoutes />}>
           {/* Dashboard: admin y empleado */}
           <Route path="/admin/dashboard" element={(role === 'admin' || role === 'empleado') ? <Dashboard /> : <Navigate to="/admin/home" replace />} />
+          {/* Mi Taller: solo admin */}
+          <Route path="/admin/mi-taller" element={(role === 'admin') ? <TallerPage /> : <Navigate to="/admin/home" replace />} />
           {/* Administración: solo admin */}
           <Route path="/admin/usuarios" element={(role === 'admin') ? <UserPage /> : <Navigate to="/admin/home" replace />} />
           <Route path="/admin/cargos" element={(role === 'admin') ? <CargoPage /> : <Navigate to="/admin/home" replace />} />
@@ -129,9 +160,13 @@ const AppRouter = () => {
           {/* Rutas para el módulo de Pagos */}
           <Route path="/pagos" element={(role === 'admin') ? <PagosList /> : <Navigate to="/admin/home" replace />} />
           <Route path="/pagos/:pagoId" element={(role === 'admin') ? <PagoDetalle /> : <Navigate to="/admin/home" replace />} />
-          <Route path="/pagos/checkout/:ordenId" element={(role === 'admin') ? <PagoCheckout /> : <Navigate to="/admin/home" replace />} />
+          <Route path="/pagos/checkout/:ordenId" element={(role === 'admin' || role === 'cliente') ? <PagoCheckout /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para factura de proveedor */}
           <Route path="/admin/finanzas/facturas-proveedor" element={(role === 'admin') ? <FacturaProveedorPage /> : <Navigate to="/admin/home" replace />} />
+          {/* Ruta para reportes */}
+          <Route path="/admin/finanzas/reportes" element={(role === 'admin') ? <ReportesPage /> : <Navigate to="/admin/home" replace />} />
+          {/* Ruta para backup y restore */}
+          <Route path="/admin/backup" element={(role === 'admin') ? <BackupPage /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para reconocimiento de placas */}
           <Route path="/admin/reconocimiento" element={(role === 'admin' || role === 'empleado') ? <ReconocimientoPage /> : <Navigate to="/admin/home" replace />} />
           {/* Ruta para proveedores */}

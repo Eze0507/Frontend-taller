@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaCar, FaWrench, FaOilCan, FaCogs, FaChartLine, FaBolt, FaTools, FaTachometerAlt, FaUser, FaSignOutAlt, FaChevronDown, FaClipboardList } from 'react-icons/fa';
-import UserProfile from '../../components/UserProfile';
-import { useAuth } from '../../hooks/useAuth';
+import { FaCar, FaWrench, FaOilCan, FaCogs, FaChartLine, FaBolt, FaTools, FaTachometerAlt, FaUser, FaSignOutAlt, FaChevronDown, FaClipboardList, FaCalendarAlt, FaStore } from 'react-icons/fa';
+import UserProfile from '@/components/UserProfile';
+import FloatingChatbot from '@/components/FloatingChatbot';
+import { useAuth } from '@/hooks/useAuth';
+import { obtenerPerfilTaller } from '@/api/tallerApi';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -11,16 +13,51 @@ const HomePage = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [username, setUsername] = useState('Usuario');
   const [userRole, setUserRole] = useState('Invitado');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [nombreTaller, setNombreTaller] = useState('AutoFix');
+  const [logoTaller, setLogoTaller] = useState(null);
 
-  // Obtener el nombre del usuario del localStorage
+  // Obtener el nombre del usuario y datos del taller del localStorage
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
-    const storedRole = (localStorage.getItem('userRole') || '').toLowerCase();
-    if (storedUsername) {
-      setUsername(storedUsername);
-    }
-    if (storedRole) {
-      setUserRole(storedRole === 'administrador' ? 'admin' : storedRole);
+    const storedRole = localStorage.getItem('userRole') || 'invitado';
+    const token = localStorage.getItem('access');
+    
+    setIsAuthenticated(!!token);
+    setUsername(storedUsername || 'Usuario');
+    setUserRole(storedRole);
+    
+    console.log('🔵 [HomePage] Username:', storedUsername);
+    console.log('🔵 [HomePage] Role:', storedRole);
+    console.log('🔵 [HomePage] IsAuthenticated:', !!token);
+
+    // Si está autenticado, obtener datos del taller
+    if (token) {
+      const fetchTallerInfo = async () => {
+        try {
+          const tallerData = await obtenerPerfilTaller();
+          if (tallerData && tallerData.nombre_taller) {
+            setNombreTaller(tallerData.nombre_taller);
+            localStorage.setItem('nombre_taller', tallerData.nombre_taller);
+          }
+          if (tallerData && tallerData.logo) {
+            setLogoTaller(tallerData.logo);
+            localStorage.setItem('logo_taller', tallerData.logo);
+          }
+        } catch (error) {
+          // Si hay error, intentar obtener de localStorage
+          const savedName = localStorage.getItem('nombre_taller');
+          const savedLogo = localStorage.getItem('logo_taller');
+          if (savedName) setNombreTaller(savedName);
+          if (savedLogo) setLogoTaller(savedLogo);
+          console.log('No se pudo cargar el perfil del taller');
+        }
+      };
+      fetchTallerInfo();
+    } else {
+      // Si NO está autenticado, usar valores por defecto
+      setNombreTaller('AutoFix');
+      setLogoTaller(null);
     }
   }, []);
 
@@ -28,11 +65,11 @@ const HomePage = () => {
     try {
       console.log("🚪 Iniciando logout desde HomePage...");
       await logout({ navigate });
-      // El hook useAuth ya redirige con window.location.href
+      // El hook useAuth ya redirige a "/" con window.location.href
     } catch (error) {
       console.error("❌ Error durante el logout:", error);
-      // Fallback: forzar redirección al login incluso si hay error
-      window.location.href = "/login";
+      // Fallback: forzar redirección a la página principal incluso si hay error
+      window.location.href = "/";
     }
   };
 
@@ -43,41 +80,63 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="relative mr-3">
-                <FaCar className="text-2xl text-blue-500" />
-                <FaWrench className="absolute -bottom-1 -right-1 text-sm text-yellow-500" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-800">AutoFix</h1>
+              {logoTaller && isAuthenticated ? (
+                <img 
+                  src={logoTaller} 
+                  alt="Logo del taller" 
+                  className="h-10 w-10 object-contain rounded mr-3"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    setLogoTaller(null);
+                  }}
+                />
+              ) : (
+                <div className="relative mr-3">
+                  <FaCar className="text-2xl text-blue-500" />
+                  <FaWrench className="absolute -bottom-1 -right-1 text-sm text-yellow-500" />
+                </div>
+              )}
+              <h1 className="text-xl font-bold text-gray-800">{nombreTaller}</h1>
             </div>
             <div className="flex items-center space-x-4">
-              {userRole !== 'cliente' && (
-                <Link 
-                  to="/admin/dashboard"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate('/admin/dashboard');
-                    // Fallback duro por si el Router no navega por estado estancado
-                    setTimeout(() => {
-                      if (window.location.pathname !== '/admin/dashboard') {
-                        window.location.href = '/admin/dashboard';
-                      }
-                    }, 50);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-                >
-                  Panel Administrativo
-                </Link>
+              {/* Botones para usuarios NO autenticados */}
+              {!isAuthenticated && (
+                <>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="text-gray-700 hover:text-blue-600 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  >
+                    Iniciar Sesión
+                  </button>
+                  <button
+                    onClick={() => navigate('/register')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 shadow-md hover:shadow-lg"
+                  >
+                    Registrarse
+                  </button>
+                </>
               )}
               
-              {/* User Dropdown */}
-              <div className="relative">
+              {/* Botones para usuarios autenticados */}
+              {isAuthenticated && (userRole === 'admin' || userRole === 'empleado') && (
                 <button
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="bg-gray-800 text-white px-4 py-2 rounded-full text-sm flex items-center space-x-2 hover:bg-gray-700 transition-colors duration-200"
+                  onClick={() => navigate('/admin/dashboard')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 shadow-md hover:shadow-lg"
                 >
-                  <span>Hola, {username}</span>
-                  <FaChevronDown className={`text-xs transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
+                  Panel Administrativo
                 </button>
+              )}
+              
+              {/* User Dropdown - Solo si está autenticado */}
+              {isAuthenticated && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="bg-gray-800 text-white px-4 py-2 rounded-full text-sm flex items-center space-x-2 hover:bg-gray-700 transition-colors duration-200"
+                  >
+                    <span>Hola, {username}</span>
+                    <FaChevronDown className={`text-xs transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
+                  </button>
                 
                 {showUserDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
@@ -94,19 +153,32 @@ const HomePage = () => {
                       </button>
                       
                       {userRole === 'cliente' && (
-                        <button
-                          onClick={() => {
-                            console.log('🔵 [HomePage] Click en Mis Órdenes');
-                            console.log('🔵 [HomePage] userRole:', userRole);
-                            console.log('🔵 [HomePage] Navegando a /mis-ordenes');
-                            setShowUserDropdown(false);
-                            navigate('/mis-ordenes');
-                          }}
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                        >
-                          <FaClipboardList className="mr-3 text-gray-400" />
-                          Mis Órdenes
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              console.log('🔵 [HomePage] Click en Mis Órdenes');
+                              console.log('🔵 [HomePage] userRole:', userRole);
+                              console.log('🔵 [HomePage] Navegando a /mis-ordenes');
+                              setShowUserDropdown(false);
+                              navigate('/mis-ordenes');
+                            }}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <FaClipboardList className="mr-3 text-gray-400" />
+                            Mis Órdenes
+                          </button>
+                          <button
+                            onClick={() => {
+                              console.log('🔵 [HomePage] Click en Mis Citas');
+                              setShowUserDropdown(false);
+                              navigate('/mis-citas');
+                            }}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <FaCalendarAlt className="mr-3 text-gray-400" />
+                            Mis Citas
+                          </button>
+                        </>
                       )}
                       
                       <hr className="border-gray-200" />
@@ -120,7 +192,8 @@ const HomePage = () => {
                     </div>
                   </div>
                 )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -136,14 +209,29 @@ const HomePage = () => {
           }}
         ></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
-          <div className="text-white">
-            <h2 className="text-5xl font-bold mb-4">
-              Bienvenido a AutoFix
-            </h2>
-            <p className="text-xl mb-8 max-w-2xl">
-              Sistema integral de gestión para talleres automotrices. 
-              Administra clientes, servicios, inventario y finanzas en un solo lugar.
-            </p>
+          <div className="w-full flex items-center justify-between gap-8">
+            <div className="text-white flex-1">
+              <h2 className="text-5xl font-bold mb-4">
+                {isAuthenticated ? `Bienvenido a ${nombreTaller}, ${username}` : `Bienvenido a ${nombreTaller}`}
+              </h2>
+              <p className="text-xl mb-8 max-w-2xl">
+                Sistema integral de gestión para talleres automotrices. 
+                Administra clientes, servicios, inventario y finanzas en un solo lugar.
+              </p>
+            </div>
+            
+            {/* Botón CTA para registrar taller - solo usuarios NO autenticados */}
+            {!isAuthenticated && (
+              <div className="flex-shrink-0">
+                <button
+                  onClick={() => navigate('/register-taller')}
+                  className="inline-flex items-center bg-white text-blue-600 px-8 py-4 rounded-lg font-bold hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                >
+                  <FaStore className="mr-3 text-2xl" />
+                  Registrar Mi Taller
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -256,10 +344,13 @@ const HomePage = () => {
         </div>
       </footer>
 
-      {/* User Profile Modal */}
-      {showProfile && (
+      {/* User Profile Modal - Solo si está autenticado */}
+      {isAuthenticated && showProfile && (
         <UserProfile onClose={() => setShowProfile(false)} />
       )}
+
+      {/* Floating Chatbot - Público */}
+      <FloatingChatbot />
     </div>
   );
 };

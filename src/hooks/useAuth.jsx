@@ -56,22 +56,31 @@ export function useAuth() {
       const userData = parseJwt(access);
       console.log("Datos decodificados del token:", userData);
 
+      // Función auxiliar para mapear roles
+      const mapRole = (role) => {
+        const normalized = (role || '').toString().toLowerCase();
+        return normalized === 'administrador' ? 'admin' : normalized;
+      };
+
       // Intentar obtener rol desde el token (si existiera)
       if (userData && userData.role) {
-        localStorage.setItem("userRole", userData.role);
+        const mappedRole = mapRole(userData.role);
+        localStorage.setItem("userRole", mappedRole);
+        console.log(`✅ Rol '${userData.role}' mapeado a '${mappedRole}'`);
       } else if (userData && userData.groups && userData.groups.length > 0) {
-        localStorage.setItem("userRole", userData.groups[0]);
+        const mappedRole = mapRole(userData.groups[0]);
+        localStorage.setItem("userRole", mappedRole);
+        console.log(`✅ Rol '${userData.groups[0]}' mapeado a '${mappedRole}'`);
       } else {
         // Si el token no trae rol, consultar al backend existente /auth/me/ (sin cambiar backend)
         try {
           const me = await axios.get(`${apiUrl}auth/me/`, {
             headers: { Authorization: `Bearer ${access}` },
           });
-          const serverRole = (me?.data?.role || '').toString().toLowerCase();
-          // Mapear nombres de grupos a claves de front
-          const mapped = serverRole === 'administrador' ? 'admin' : serverRole;
-          if (mapped) {
-            localStorage.setItem("userRole", mapped);
+          const mappedRole = mapRole(me?.data?.role);
+          if (mappedRole) {
+            localStorage.setItem("userRole", mappedRole);
+            console.log(`✅ Rol '${me?.data?.role}' mapeado a '${mappedRole}'`);
           }
         } catch (e) {
           console.warn('No se pudo obtener rol desde /auth/me/', e?.message || e);
@@ -90,30 +99,46 @@ export function useAuth() {
 
   const logout = async ({ navigate } = {}) => {
     setLoading(true);
+    
+    // PRIMERO: Guardar los tokens ANTES de borrar localStorage
+    const refresh = localStorage.getItem("refresh");
+    const access = localStorage.getItem("access");
+    const apiUrl = import.meta.env.VITE_API_URL;
+    
     try {
-      const refresh = localStorage.getItem("refresh");
-      const access = localStorage.getItem("access");
-      const apiUrl = import.meta.env.VITE_API_URL;
-      
       if (refresh && access) {
-        // Llamar al endpoint de logout del backend para invalidar el refresh token
+        console.log("🔐 Enviando logout al backend...");
+        console.log("🔑 Refresh token:", refresh.substring(0, 20) + "...");
+        console.log("🔑 Access token:", access.substring(0, 20) + "...");
+        
+        // Llamar al endpoint de logout del backend para invalidar el refresh token (blacklist)
+        // Probar con 'refresh' en lugar de 'refresh_token'
         const response = await axios.post(`${apiUrl}logout/`, {
-          refresh
+          refresh: refresh  // Intentar con 'refresh' directamente
         }, {
           headers: {
             "Authorization": `Bearer ${access}`,
+            "Content-Type": "application/json",
           }
         });
 
-        if (response.status === 200) {
-          console.log("✅ Logout exitoso:", response.data.message);
+        if (response.status === 200 || response.status === 205) {
+          console.log("✅ Logout exitoso - Token agregado a blacklist:", response.data);
         }
+      } else {
+        console.warn("⚠️ No se encontraron tokens para enviar al backend");
+        console.log("refresh:", refresh);
+        console.log("access:", access);
       }
     } catch (error) {
-      // Si falla la llamada al backend, continuar con el logout local
-      console.warn("❌ Error al comunicarse con el backend durante logout:", error);
+      // Si falla la llamada al backend, mostrar el error pero continuar con el logout local
+      console.error("❌ Error al comunicarse con el backend durante logout:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
     } finally {
-      // Siempre limpiar el localStorage sin importar si el backend respondió
+      // DESPUÉS: Limpiar el localStorage solo después de enviar la petición
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
       localStorage.removeItem("username");
@@ -122,8 +147,8 @@ export function useAuth() {
       console.log("🧹 Tokens eliminados del localStorage");
       setLoading(false);
       
-      // Forzar recarga completa a la página de login
-      window.location.href = "/login";
+      // Redirigir a la página principal (HomePage pública)
+      window.location.href = "/";
     }
   };
 
